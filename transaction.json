@@ -1,0 +1,708 @@
+[
+  {
+    "meta": {
+      "page": 1,
+      "limit": 10,
+      "total_items": 958,
+      "total_pages": 96,
+      "has_next": true,
+      "has_prev": false
+    },
+    "data": [
+      {
+        "user_id": "aa3b8355-42d0-41a3-91b9-b637a0d18f3d",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "aa3b8355-42d0-41a3-91b9-b637a0d18f3d",
+            "product_id": "bfbacdc8-fa89-4e03-ab47-aa5050026503",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:02.304047Z",
+            "id_trx": "a0a094a2-32bf-43cb-927b-4c0a8edf98b0",
+            "id": 5659,
+            "createdAt": "2025-12-23T07:48:23.347Z",
+            "updatedAt": "2025-12-23T07:48:23.347Z"
+          },
+          {
+            "user_id": "aa3b8355-42d0-41a3-91b9-b637a0d18f3d",
+            "product_id": "d3164526-a90d-43b5-947e-143fa4290b87",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:02.143592Z",
+            "id_trx": "071a50f4-092f-4d93-8f6d-079a8851d214",
+            "id": 5660,
+            "createdAt": "2025-12-23T07:48:23.348Z",
+            "updatedAt": "2025-12-23T07:48:23.348Z"
+          },
+          {
+            "user_id": "aa3b8355-42d0-41a3-91b9-b637a0d18f3d",
+            "product_id": "c6a16e7b-d113-4bb4-9b46-569a3ffffa42",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:01.986281Z",
+            "id_trx": "a94009b9-0092-4bea-b9ef-909e13c10a26",
+            "id": 5661,
+            "createdAt": "2025-12-23T07:48:23.348Z",
+            "updatedAt": "2025-12-23T07:48:23.348Z"
+          },
+          {
+            "user_id": "aa3b8355-42d0-41a3-91b9-b637a0d18f3d",
+            "product_id": "732eb725-4a5e-402a-9b0a-b7a4e7b6123c",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:01.831987Z",
+            "id_trx": "2a3b4887-c2a0-4462-a27e-10f14baca038",
+            "id": 5662,
+            "createdAt": "2025-12-23T07:48:23.349Z",
+            "updatedAt": "2025-12-23T07:48:23.349Z"
+          }
+        ]
+      },
+      {
+        "user_id": "3730e8df-e6c5-4ed1-816f-2a42873674de",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "3730e8df-e6c5-4ed1-816f-2a42873674de",
+            "product_id": "fb418134-cc9b-4fd1-a51b-71fb48235cc7",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:05.785082Z",
+            "id_trx": "300a1c83-c6bd-4f07-9084-e88de286dc1a",
+            "id": 5359,
+            "createdAt": "2025-12-23T07:48:20.196Z",
+            "updatedAt": "2025-12-23T07:48:20.196Z"
+          },
+          {
+            "user_id": "3730e8df-e6c5-4ed1-816f-2a42873674de",
+            "product_id": "dbb97f07-3b68-405b-8f08-0b0332d1dc3a",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:05.623452Z",
+            "id_trx": "7f6b55e3-da5d-44db-a1e2-bff25ea884ce",
+            "id": 5360,
+            "createdAt": "2025-12-23T07:48:20.197Z",
+            "updatedAt": "2025-12-23T07:48:20.197Z"
+          },
+          {
+            "user_id": "3730e8df-e6c5-4ed1-816f-2a42873674de",
+            "product_id": "9c03adda-6b4a-4a38-939c-f939fb212885",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:05.462111Z",
+            "id_trx": "62c11ca7-c510-4dff-97cf-2805ffd5ec72",
+            "id": 5361,
+            "createdAt": "2025-12-23T07:48:20.198Z",
+            "updatedAt": "2025-12-23T07:48:20.198Z"
+          },
+          {
+            "user_id": "3730e8df-e6c5-4ed1-816f-2a42873674de",
+            "product_id": "220d6210-489e-4d38-99c8-718799a68431",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:05.305461Z",
+            "id_trx": "adf6be8d-132b-42aa-9f3f-0af5ec36fbc0",
+            "id": 5362,
+            "createdAt": "2025-12-23T07:48:20.198Z",
+            "updatedAt": "2025-12-23T07:48:20.198Z"
+          }
+        ]
+      },
+      {
+        "user_id": "9c9c749e-2221-4e6b-a4c5-34a23e4a9afc",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "9c9c749e-2221-4e6b-a4c5-34a23e4a9afc",
+            "product_id": "b95c72a9-97fe-445c-aa58-acfe9cd67aaf",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:02.934665Z",
+            "id_trx": "024f501e-4fa1-42e6-8504-6f7112e499bb",
+            "id": 5655,
+            "createdAt": "2025-12-23T07:48:23.344Z",
+            "updatedAt": "2025-12-23T07:48:23.344Z"
+          },
+          {
+            "user_id": "9c9c749e-2221-4e6b-a4c5-34a23e4a9afc",
+            "product_id": "12a41af6-f1ad-48d1-a3ce-2977acf55095",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:02.779264Z",
+            "id_trx": "3d4f9679-5822-488a-8aa2-5d65247a6e67",
+            "id": 5656,
+            "createdAt": "2025-12-23T07:48:23.345Z",
+            "updatedAt": "2025-12-23T07:48:23.345Z"
+          },
+          {
+            "user_id": "9c9c749e-2221-4e6b-a4c5-34a23e4a9afc",
+            "product_id": "3da01d17-364d-4b7c-84f9-641c7af1d219",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:02.614421Z",
+            "id_trx": "26718407-9840-47d9-be91-5aec7aa36f49",
+            "id": 5657,
+            "createdAt": "2025-12-23T07:48:23.345Z",
+            "updatedAt": "2025-12-23T07:48:23.345Z"
+          },
+          {
+            "user_id": "9c9c749e-2221-4e6b-a4c5-34a23e4a9afc",
+            "product_id": "ab4ddd08-0f20-4397-b096-c4f750b40f19",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:02.461061Z",
+            "id_trx": "c1670a9f-4a1a-4f44-a76c-ed29580936ec",
+            "id": 5658,
+            "createdAt": "2025-12-23T07:48:23.346Z",
+            "updatedAt": "2025-12-23T07:48:23.346Z"
+          }
+        ]
+      },
+      {
+        "user_id": "69aa5215-5c5b-4ccb-aaae-463f98b43c45",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "69aa5215-5c5b-4ccb-aaae-463f98b43c45",
+            "product_id": "1fe58b94-7d2e-470d-a328-5cbe59085bcb",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:54.314008Z",
+            "id_trx": "a66a3186-d6c3-4a87-a2c6-5c376f19d6e0",
+            "id": 5711,
+            "createdAt": "2025-12-23T07:48:24.375Z",
+            "updatedAt": "2025-12-23T07:48:24.375Z"
+          },
+          {
+            "user_id": "69aa5215-5c5b-4ccb-aaae-463f98b43c45",
+            "product_id": "47a0dfb0-ce58-4d3b-8a57-60771f26f5bd",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:54.160519Z",
+            "id_trx": "00d5322b-3542-42fb-8846-9029f5b0995f",
+            "id": 5712,
+            "createdAt": "2025-12-23T07:48:24.376Z",
+            "updatedAt": "2025-12-23T07:48:24.376Z"
+          },
+          {
+            "user_id": "69aa5215-5c5b-4ccb-aaae-463f98b43c45",
+            "product_id": "1c071478-433e-4f16-b287-7ccb51802e71",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:54.009263Z",
+            "id_trx": "d6e9e995-f47d-4719-b67e-4847c2152361",
+            "id": 5713,
+            "createdAt": "2025-12-23T07:48:24.377Z",
+            "updatedAt": "2025-12-23T07:48:24.377Z"
+          },
+          {
+            "user_id": "69aa5215-5c5b-4ccb-aaae-463f98b43c45",
+            "product_id": "ca7c739b-a36d-4895-9c8a-be4b84852e66",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:53.854199Z",
+            "id_trx": "58aa67ab-30a8-4c28-b268-8a80dd608d69",
+            "id": 5714,
+            "createdAt": "2025-12-23T07:48:24.378Z",
+            "updatedAt": "2025-12-23T07:48:24.378Z"
+          }
+        ]
+      },
+      {
+        "user_id": "91498054-e5d6-4ee1-8e5f-ba78e2ba9121",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "91498054-e5d6-4ee1-8e5f-ba78e2ba9121",
+            "product_id": "1a781937-c082-4f5e-a741-092177417d3b",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:01.655357Z",
+            "id_trx": "d5bb5438-1619-4dec-b1fe-2b2095fae895",
+            "id": 5663,
+            "createdAt": "2025-12-23T07:48:23.350Z",
+            "updatedAt": "2025-12-23T07:48:23.350Z"
+          },
+          {
+            "user_id": "91498054-e5d6-4ee1-8e5f-ba78e2ba9121",
+            "product_id": "1f07ecc3-e73f-4cc5-818a-3849fac46d59",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:01.499696Z",
+            "id_trx": "5a45c0bf-d781-4e62-b88d-3a51df888e2d",
+            "id": 5664,
+            "createdAt": "2025-12-23T07:48:23.351Z",
+            "updatedAt": "2025-12-23T07:48:23.351Z"
+          },
+          {
+            "user_id": "91498054-e5d6-4ee1-8e5f-ba78e2ba9121",
+            "product_id": "7afc1b8a-f80c-4227-9a6c-9de4e751df48",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:01.341195Z",
+            "id_trx": "0e28914c-0f44-43ef-a22a-7ecc240a8c36",
+            "id": 5665,
+            "createdAt": "2025-12-23T07:48:23.351Z",
+            "updatedAt": "2025-12-23T07:48:23.351Z"
+          },
+          {
+            "user_id": "91498054-e5d6-4ee1-8e5f-ba78e2ba9121",
+            "product_id": "56ed3c6e-f06b-46d4-9015-7964f1104e91",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-18T06:47:01.183875Z",
+            "id_trx": "7af12635-3447-4735-9c48-77fd5b1a91da",
+            "id": 5666,
+            "createdAt": "2025-12-23T07:48:23.352Z",
+            "updatedAt": "2025-12-23T07:48:23.352Z"
+          }
+        ]
+      },
+      {
+        "user_id": "2d7c89cd-6054-43c4-845b-69be0d9019ae",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "2d7c89cd-6054-43c4-845b-69be0d9019ae",
+            "product_id": "65ed9305-dac5-498a-aef8-490ea1d560f5",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:09.075193Z",
+            "id_trx": "676f7781-7534-4fc5-ad45-95bd82b0e948",
+            "id": 5339,
+            "createdAt": "2025-12-23T07:48:20.181Z",
+            "updatedAt": "2025-12-23T07:48:20.181Z"
+          },
+          {
+            "user_id": "2d7c89cd-6054-43c4-845b-69be0d9019ae",
+            "product_id": "7b428677-3d7d-43fe-b546-7a9c8a193a90",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:08.911422Z",
+            "id_trx": "316290d8-fddc-4a3d-adee-8df381366f8b",
+            "id": 5340,
+            "createdAt": "2025-12-23T07:48:20.181Z",
+            "updatedAt": "2025-12-23T07:48:20.181Z"
+          },
+          {
+            "user_id": "2d7c89cd-6054-43c4-845b-69be0d9019ae",
+            "product_id": "576ccfe0-a852-4f2e-a0d4-132c09e7babb",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:08.750397Z",
+            "id_trx": "7b4bdc3e-a246-4102-b5dd-fc68d37d3b84",
+            "id": 5341,
+            "createdAt": "2025-12-23T07:48:20.182Z",
+            "updatedAt": "2025-12-23T07:48:20.182Z"
+          },
+          {
+            "user_id": "2d7c89cd-6054-43c4-845b-69be0d9019ae",
+            "product_id": "0d451029-385d-4053-9f4b-9fc7567cf052",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-19T05:47:08.584755Z",
+            "id_trx": "5a12d708-c7ec-4264-ba03-4a5571f9520c",
+            "id": 5342,
+            "createdAt": "2025-12-23T07:48:20.183Z",
+            "updatedAt": "2025-12-23T07:48:20.183Z"
+          }
+        ]
+      },
+      {
+        "user_id": "5597f390-24a6-4cb0-aeb5-60a226a3748a",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "5597f390-24a6-4cb0-aeb5-60a226a3748a",
+            "product_id": "a17f0171-e9f0-477b-a848-436dc700df4d",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:59.834236Z",
+            "id_trx": "aae55e18-7216-421a-b43e-a1fa72d6a413",
+            "id": 5675,
+            "createdAt": "2025-12-23T07:48:23.359Z",
+            "updatedAt": "2025-12-23T07:48:23.359Z"
+          },
+          {
+            "user_id": "5597f390-24a6-4cb0-aeb5-60a226a3748a",
+            "product_id": "87206cf7-025f-41c0-82a7-630c051c493a",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:59.682428Z",
+            "id_trx": "8ce93e6b-31f9-4e15-a93c-02842b701e6a",
+            "id": 5676,
+            "createdAt": "2025-12-23T07:48:23.360Z",
+            "updatedAt": "2025-12-23T07:48:23.360Z"
+          },
+          {
+            "user_id": "5597f390-24a6-4cb0-aeb5-60a226a3748a",
+            "product_id": "e4ab3068-d1d8-4bf7-824f-3a781ded2617",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:59.531006Z",
+            "id_trx": "2236d002-5794-4f61-8247-9cd308c4a674",
+            "id": 5677,
+            "createdAt": "2025-12-23T07:48:23.361Z",
+            "updatedAt": "2025-12-23T07:48:23.361Z"
+          },
+          {
+            "user_id": "5597f390-24a6-4cb0-aeb5-60a226a3748a",
+            "product_id": "0532f5f4-e0a3-426e-9c71-e33f8de6706a",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:59.379142Z",
+            "id_trx": "c3752e61-fb92-49e9-9957-e88134175a66",
+            "id": 5678,
+            "createdAt": "2025-12-23T07:48:23.361Z",
+            "updatedAt": "2025-12-23T07:48:23.361Z"
+          }
+        ]
+      },
+      {
+        "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+        "total_amount": 697,
+        "transaction_count": 13,
+        "transactions": [
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "074c2419-af69-48d9-b549-9a981725582e",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-12-18T03:28:00.707852Z",
+            "id_trx": "eab0b752-9912-4837-9232-ce279ce4da71",
+            "id": 756,
+            "createdAt": "2025-12-23T07:47:33.454Z",
+            "updatedAt": "2025-12-23T07:47:33.454Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "54f605d8-882a-4159-80a9-9007066fd124",
+            "agent": "0d29d160-52ab-466c-977e-01008f54013e",
+            "amount": "12",
+            "type": "debit",
+            "created_at": "2025-12-03T17:59:03.230978Z",
+            "id_trx": "e2bbb285-8ddd-4a81-a1d9-b7a78b9dfc6d",
+            "id": 2427,
+            "createdAt": "2025-12-23T07:47:49.570Z",
+            "updatedAt": "2025-12-23T07:47:49.570Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "074c2419-af69-48d9-b549-9a981725582e",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-28T12:55:35.110873Z",
+            "id_trx": "4fb2e5e8-48a2-4821-8cc8-82a136590551",
+            "id": 2675,
+            "createdAt": "2025-12-23T07:47:51.598Z",
+            "updatedAt": "2025-12-23T07:47:51.598Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a18a0d5a-ca3c-43f2-9213-59b05dae6e05",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "40",
+            "type": "debit",
+            "created_at": "2025-11-25T15:46:25.815948Z",
+            "id_trx": "e83a84db-bbc8-4550-aab5-cc689171dde4",
+            "id": 3047,
+            "createdAt": "2025-12-23T07:47:55.435Z",
+            "updatedAt": "2025-12-23T07:47:55.435Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a18a0d5a-ca3c-43f2-9213-59b05dae6e05",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "40",
+            "type": "debit",
+            "created_at": "2025-11-25T15:01:24.887042Z",
+            "id_trx": "42f11578-a14c-4c4f-99d3-7f0c43eaa5df",
+            "id": 3048,
+            "createdAt": "2025-12-23T07:47:55.436Z",
+            "updatedAt": "2025-12-23T07:47:55.436Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a18a0d5a-ca3c-43f2-9213-59b05dae6e05",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "4",
+            "type": "debit",
+            "created_at": "2025-11-25T15:00:01.545057Z",
+            "id_trx": "fdcbd2d1-34e6-4dd2-88bd-e73fa3a771fc",
+            "id": 3049,
+            "createdAt": "2025-12-23T07:47:55.436Z",
+            "updatedAt": "2025-12-23T07:47:55.436Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a18a0d5a-ca3c-43f2-9213-59b05dae6e05",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "2",
+            "type": "debit",
+            "created_at": "2025-11-25T14:50:00.60126Z",
+            "id_trx": "ff44854c-ef7e-400b-b38b-0959b8249e61",
+            "id": 3050,
+            "createdAt": "2025-12-23T07:47:55.437Z",
+            "updatedAt": "2025-12-23T07:47:55.437Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a18a0d5a-ca3c-43f2-9213-59b05dae6e05",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "4",
+            "type": "debit",
+            "created_at": "2025-11-25T14:37:14.367892Z",
+            "id_trx": "90bf8b43-b11c-46be-9299-989856d981be",
+            "id": 3051,
+            "createdAt": "2025-12-23T07:47:55.438Z",
+            "updatedAt": "2025-12-23T07:47:55.438Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a18a0d5a-ca3c-43f2-9213-59b05dae6e05",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "5",
+            "type": "debit",
+            "created_at": "2025-11-25T14:33:35.625028Z",
+            "id_trx": "107595ae-9e64-476a-ac9b-c1f10bfb6033",
+            "id": 3052,
+            "createdAt": "2025-12-23T07:47:55.439Z",
+            "updatedAt": "2025-12-23T07:47:55.439Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a25de34e-f961-4fa4-897b-0023997d7a0f",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:53.696977Z",
+            "id_trx": "0c10ef23-1ee4-4c3f-8aab-c4223999eaf8",
+            "id": 5715,
+            "createdAt": "2025-12-23T07:48:24.378Z",
+            "updatedAt": "2025-12-23T07:48:24.378Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "dd3b2ae6-3dc8-4fc6-bad2-4ab9794aad73",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:53.542167Z",
+            "id_trx": "45167b0b-77a8-407a-a0e1-4e56d84b5dba",
+            "id": 5716,
+            "createdAt": "2025-12-23T07:48:24.379Z",
+            "updatedAt": "2025-12-23T07:48:24.379Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "a18a0d5a-ca3c-43f2-9213-59b05dae6e05",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:53.384796Z",
+            "id_trx": "be888048-e098-4e98-9a50-c7399069d833",
+            "id": 5717,
+            "createdAt": "2025-12-23T07:48:24.380Z",
+            "updatedAt": "2025-12-23T07:48:24.380Z"
+          },
+          {
+            "user_id": "aeed59cc-b279-4ec6-a5a2-71a9203ca40a",
+            "product_id": "54f605d8-882a-4159-80a9-9007066fd124",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:52.67161Z",
+            "id_trx": "e11d8a17-950c-4750-85c3-fcee00cb545c",
+            "id": 5718,
+            "createdAt": "2025-12-23T07:48:24.381Z",
+            "updatedAt": "2025-12-23T07:48:24.381Z"
+          }
+        ]
+      },
+      {
+        "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+        "total_amount": 439,
+        "transaction_count": 7,
+        "transactions": [
+          {
+            "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+            "product_id": "110d4084-8ba7-4b60-b6c0-0169c62c93b4",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "40",
+            "type": "debit",
+            "created_at": "2025-11-20T09:03:36.583927Z",
+            "id_trx": "29febaa4-3a78-47c1-aee7-bf4904ba597c",
+            "id": 5203,
+            "createdAt": "2025-12-23T07:48:19.104Z",
+            "updatedAt": "2025-12-23T07:48:19.104Z"
+          },
+          {
+            "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+            "product_id": "110d4084-8ba7-4b60-b6c0-0169c62c93b4",
+            "agent": "9ba95f62-7f26-4922-9b84-3fa0822b34ac",
+            "amount": "3",
+            "type": "debit",
+            "created_at": "2025-11-20T08:53:45.328195Z",
+            "id_trx": "30466fd3-2ab8-4450-809f-5c12548d1209",
+            "id": 5204,
+            "createdAt": "2025-12-23T07:48:19.105Z",
+            "updatedAt": "2025-12-23T07:48:19.105Z"
+          },
+          {
+            "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+            "product_id": "26d034c4-eb34-48c7-aee6-7450f175073b",
+            "agent": "0d29d160-52ab-466c-977e-01008f54013e",
+            "amount": "12",
+            "type": "debit",
+            "created_at": "2025-11-20T08:35:30.990136Z",
+            "id_trx": "dcc9d011-484d-40ff-87ab-13a37a1f8f6b",
+            "id": 5207,
+            "createdAt": "2025-12-23T07:48:19.108Z",
+            "updatedAt": "2025-12-23T07:48:19.108Z"
+          },
+          {
+            "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+            "product_id": "f887314f-f51c-49b0-aff1-373514d7f66b",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:59.226016Z",
+            "id_trx": "817a4a75-c2a5-4875-86f2-c3618e7124b2",
+            "id": 5679,
+            "createdAt": "2025-12-23T07:48:23.362Z",
+            "updatedAt": "2025-12-23T07:48:23.362Z"
+          },
+          {
+            "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+            "product_id": "e4b1a690-ad26-4a50-9ce0-884233eedc9d",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:59.061439Z",
+            "id_trx": "53506827-bf1d-42db-aa55-ab61157dbde2",
+            "id": 5680,
+            "createdAt": "2025-12-23T07:48:23.363Z",
+            "updatedAt": "2025-12-23T07:48:23.363Z"
+          },
+          {
+            "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+            "product_id": "110d4084-8ba7-4b60-b6c0-0169c62c93b4",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:58.907965Z",
+            "id_trx": "b19e31f4-d87a-4379-b0f9-468a0fb0cab4",
+            "id": 5681,
+            "createdAt": "2025-12-23T07:48:23.364Z",
+            "updatedAt": "2025-12-23T07:48:23.364Z"
+          },
+          {
+            "user_id": "0f3ec8a2-2d31-41ac-a3fe-4fe65a3c67d9",
+            "product_id": "26d034c4-eb34-48c7-aee6-7450f175073b",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-18T06:46:58.756474Z",
+            "id_trx": "e7147958-b4c7-4dec-bae4-0b58958bcc1b",
+            "id": 5682,
+            "createdAt": "2025-12-23T07:48:23.364Z",
+            "updatedAt": "2025-12-23T07:48:23.364Z"
+          }
+        ]
+      },
+      {
+        "user_id": "c5bba78e-8560-4aed-91da-ce33ecf7669a",
+        "total_amount": 384,
+        "transaction_count": 4,
+        "transactions": [
+          {
+            "user_id": "c5bba78e-8560-4aed-91da-ce33ecf7669a",
+            "product_id": "25fe458c-abfd-4aee-90c5-f398c4214c30",
+            "agent": null,
+            "amount": "85",
+            "type": "credit",
+            "created_at": "2025-11-25T09:41:33.330272Z",
+            "id_trx": "8d1afc88-931e-4067-b4d7-78d6bf7d3f65",
+            "id": 3070,
+            "createdAt": "2025-12-23T07:47:55.452Z",
+            "updatedAt": "2025-12-23T07:47:55.452Z"
+          },
+          {
+            "user_id": "c5bba78e-8560-4aed-91da-ce33ecf7669a",
+            "product_id": "adc66864-86fa-441b-ac51-bd63c1432d22",
+            "agent": null,
+            "amount": "90",
+            "type": "credit",
+            "created_at": "2025-11-25T09:41:33.080108Z",
+            "id_trx": "60846afd-5c64-4f58-9c14-420a05678a68",
+            "id": 3071,
+            "createdAt": "2025-12-23T07:47:55.453Z",
+            "updatedAt": "2025-12-23T07:47:55.453Z"
+          },
+          {
+            "user_id": "c5bba78e-8560-4aed-91da-ce33ecf7669a",
+            "product_id": "13ef3589-1612-4983-9eb6-2b90249d7b86",
+            "agent": null,
+            "amount": "103",
+            "type": "credit",
+            "created_at": "2025-11-25T09:41:32.13305Z",
+            "id_trx": "316932e0-bac7-4121-a812-49674e698ef4",
+            "id": 3072,
+            "createdAt": "2025-12-23T07:47:55.454Z",
+            "updatedAt": "2025-12-23T07:47:55.454Z"
+          },
+          {
+            "user_id": "c5bba78e-8560-4aed-91da-ce33ecf7669a",
+            "product_id": "ef52bc13-c5b6-42a3-9940-19ff850aea64",
+            "agent": null,
+            "amount": "106",
+            "type": "credit",
+            "created_at": "2025-11-25T09:41:31.322992Z",
+            "id_trx": "5ae70069-fb08-4d91-be8d-66c161f96b05",
+            "id": 3073,
+            "createdAt": "2025-12-23T07:47:55.454Z",
+            "updatedAt": "2025-12-23T07:47:55.454Z"
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,324 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.article_links (
+  id integer NOT NULL,
+  created_at timestamp with time zone,
+  url text,
+  article_id integer,
+  CONSTRAINT article_links_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.articles (
+  updated_at timestamp with time zone,
+  framework text,
+  min_chars integer,
+  id integer NOT NULL,
+  content text,
+  created_at timestamp with time zone,
+  CONSTRAINT articles_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.cms_customers (
+  guid text NOT NULL,
+  username text,
+  full_name text,
+  email text,
+  phone_number text,
+  city text,
+  country text,
+  status text,
+  is_active character varying,
+  is_email_verified boolean DEFAULT false,
+  is_phone_number_verified boolean DEFAULT false,
+  referal_code text,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone,
+  gender text,
+  birth_date date,
+  identity_number text,
+  identity_img text,
+  country_id integer,
+  city_id integer,
+  is_identity_verified boolean DEFAULT false,
+  bank_name text,
+  bank_account_number text,
+  bank_owner_name text,
+  corporate_name text,
+  industry_name text,
+  employee_qty integer,
+  solution_corporate_needs text,
+  is_free_trial_use boolean DEFAULT false,
+  created_by_guid text,
+  created_by_name text,
+  updated_by_guid text,
+  updated_by_name text,
+  subscribe_list jsonb,
+  CONSTRAINT cms_customers_pkey PRIMARY KEY (guid)
+);
+CREATE TABLE public.credit_manager_transactions (
+  created_at timestamp with time zone,
+  agent uuid,
+  amount numeric,
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_product_id uuid,
+  updated_at timestamp with time zone,
+  type text,
+  product_name text,
+  product_package text,
+  inserted_at timestamp with time zone,
+  user_id uuid,
+  action_id uuid,
+  CONSTRAINT credit_manager_transactions_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.credit_manager_users (
+  name text,
+  updated_at timestamp with time zone,
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  created_at timestamp with time zone,
+  email text,
+  CONSTRAINT credit_manager_users_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.csr_profile (
+  id integer NOT NULL,
+  description text,
+  period text,
+  updated_at timestamp with time zone,
+  company_name text,
+  CONSTRAINT csr_profile_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.demo_excluded_emails (
+  email text NOT NULL,
+  reason text,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT demo_excluded_emails_pkey PRIMARY KEY (email)
+);
+CREATE TABLE public.impact_periods (
+  is_open boolean,
+  created_at timestamp with time zone,
+  type text,
+  id integer NOT NULL,
+  starts_at timestamp with time zone,
+  name text,
+  ends_at timestamp with time zone,
+  CONSTRAINT impact_periods_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.impact_responses (
+  submitted_at timestamp with time zone,
+  email text,
+  id integer NOT NULL,
+  type text,
+  payload jsonb,
+  token text,
+  period_id integer,
+  umkm_id text,
+  CONSTRAINT impact_responses_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.lead_ai_summaries (
+  summary text,
+  id integer NOT NULL,
+  created_at timestamp with time zone,
+  cache_key text,
+  updated_at timestamp with time zone,
+  CONSTRAINT lead_ai_summaries_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.lead_app_choices (
+  whatsapp text,
+  updated_at timestamp with time zone,
+  ts_raw text,
+  inserted_at timestamp with time zone,
+  app_choice_raw text,
+  ts timestamp with time zone,
+  id integer NOT NULL,
+  nama text,
+  email text,
+  app_choice text,
+  CONSTRAINT lead_app_choices_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.lead_app_enrollments (
+  app_choice text,
+  lead_id integer,
+  lead_app_choice_id integer,
+  updated_at timestamp with time zone,
+  product_id integer,
+  id integer NOT NULL,
+  created_at timestamp with time zone,
+  CONSTRAINT lead_app_enrollments_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.leads (
+  tanggal_daftar timestamp without time zone,
+  tantangan text,
+  nomor_whatsapp text,
+  cerita_usaha text,
+  facebook_followers integer,
+  tiktok_followers integer,
+  raw_id integer,
+  jumlah_tim text,
+  instagram_url text,
+  facebook_url text,
+  marketplace_url text,
+  instagram_followers integer,
+  credit_manager_user_id uuid,
+  updated_at timestamp with time zone,
+  inserted_at timestamp with time zone,
+  tantangan_lainnya text,
+  nama_usaha text,
+  tempat_jualan text,
+  tiktok_url text,
+  nama_lengkap text,
+  id integer NOT NULL,
+  setuju_dihubungi boolean,
+  email text,
+  tanggal_cutoff text,
+  kategori text,
+  kota_domisili text,
+  kategori_usaha text,
+  CONSTRAINT leads_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.partners (
+  id integer NOT NULL DEFAULT nextval('partners_id_seq'::regclass),
+  no integer NOT NULL,
+  partner text NOT NULL,
+  tipe text NOT NULL,
+  kontak text,
+  pic_mw text,
+  status text,
+  next_to_do text,
+  notes text,
+  progress_percentage integer DEFAULT 0,
+  priority text DEFAULT 'medium'::text,
+  last_contact_date date,
+  expected_completion_date date,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  created_by text,
+  updated_by text,
+  CONSTRAINT partners_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.products (
+  guid uuid NOT NULL DEFAULT uuid_generate_v4(),
+  inserted_at timestamp with time zone,
+  updated_at timestamp with time zone,
+  agent_id character varying,
+  package text,
+  id integer,
+  application_name text,
+  CONSTRAINT products_pkey PRIMARY KEY (guid)
+);
+CREATE TABLE public.recent_events (
+  start_time timestamp with time zone,
+  name text,
+  updated_at timestamp with time zone,
+  photo_url text,
+  type text,
+  id integer NOT NULL,
+  location text,
+  summary text,
+  created_at timestamp with time zone,
+  CONSTRAINT recent_events_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.referral_partners (
+  partner text,
+  code text,
+  updated_at timestamp with time zone,
+  created_at timestamp with time zone,
+  is_gov boolean,
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  CONSTRAINT referral_partners_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.tmp_training_data (
+  no_hp ARRAY,
+  total_credits numeric,
+  solusi_crmwhiz text,
+  klasifikasi text,
+  sudah_membeli_credit text,
+  event_id uuid,
+  total_credit_tx numeric,
+  catatan text,
+  tanggal_input_trial date,
+  tanggal_input_data date,
+  total_debits numeric,
+  no integer,
+  total_debit_tx numeric,
+  solusi_smartwhiz text,
+  solusi_financewhiz text,
+  raw_json jsonb,
+  id_cms text,
+  username_trial text,
+  solusi_createwhiz text,
+  latest_balance numeric,
+  guid uuid NOT NULL DEFAULT uuid_generate_v4(),
+  credit_usage text,
+  email text,
+  akun_aktif_expired text,
+  model_training text,
+  solusi_saleswhiz text,
+  solusi_smewhiz text,
+  nama text,
+  hasil_feedback text,
+  catatan2 text,
+  nama_training text,
+  partner text,
+  jenis_usaha text,
+  CONSTRAINT tmp_training_data_pkey PRIMARY KEY (guid)
+);
+CREATE TABLE public.training_enrollments (
+  created_at timestamp with time zone,
+  user_guid uuid,
+  event_id uuid,
+  source_guid uuid,
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  CONSTRAINT training_enrollments_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.training_events (
+  created_at timestamp with time zone,
+  model text,
+  id_partner text,
+  partner text,
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text,
+  event_date date,
+  CONSTRAINT training_events_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.transaction_details (
+  guid text NOT NULL,
+  transaction_guid text,
+  merchant_guid text,
+  merchant_store_name text,
+  product_name text,
+  product_price numeric,
+  purchase_type_id text,
+  purchase_type_name text,
+  purchase_type_value text,
+  qty integer,
+  total_discount numeric,
+  grand_total numeric,
+  CONSTRAINT transaction_details_pkey PRIMARY KEY (guid),
+  CONSTRAINT fk_transaction_detail_transaction FOREIGN KEY (transaction_guid) REFERENCES public.transactions(guid)
+);
+CREATE TABLE public.transactions (
+  guid text NOT NULL,
+  invoice_number text,
+  customer_guid text,
+  transaction_callback_id text,
+  status text,
+  payment_channel_id text,
+  payment_channel_code text,
+  payment_channel_name text,
+  payment_url text,
+  qty integer,
+  valuta_code text,
+  sub_total numeric,
+  platform_fee numeric,
+  payment_service_fee numeric,
+  total_discount numeric,
+  grand_total numeric,
+  created_at timestamp with time zone,
+  created_by_guid text,
+  created_by_name text,
+  updated_at timestamp with time zone,
+  updated_by_guid text,
+  updated_by_name text,
+  CONSTRAINT transactions_pkey PRIMARY KEY (guid),
+  CONSTRAINT fk_transaction_customer FOREIGN KEY (customer_guid) REFERENCES public.cms_customers(guid)
+);

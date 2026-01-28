@@ -1,0 +1,794 @@
+Processing transaction: d9494078-2c87-4b61-ba3f-db1c2ebe9000
+Transaction data: {
+    "guid": "d9494078-2c87-4b61-ba3f-db1c2ebe9000",
+    "invoice_number": "TRX-20260123-3234",
+    "customer": {
+        "guid": "f4d33bf9-ae35-4e94-adaf-d3f87dd08b78",
+        "full_name": "",
+        "username": "dsdads3",
+        "gender": "",
+        "birth_date": "",
+        "identity_number": "",
+        "identity_img": null,
+        "country_id": 0,
+        "country": "",
+        "city_id": 0,
+        "city": "",
+        "is_identity_verified": false,
+        "bank_name": null,
+        "bank_account_number": null,
+        "bank_owner_name": null,
+        "phone_number": "",
+        "is_phone_number_verified": false,
+        "email": "dsdads3@mailinator.com",
+        "is_email_verified": true,
+        "notification_un_read": 2,
+        "status": "active",
+        "corporate_name": "",
+        "industry_name": "",
+        "employee_qty": "",
+        "solution_corporate_needs": [],
+        "merchant": null,
+        "is_completed": false,
+        "referal_code": "Zn4GNT",
+        "is_free_trial_use": false,
+        "is_referal": false,
+        "created_at": "2026-01-23T04:13:11.741081",
+        "created_by": {
+            "guid": "",
+            "name": "by system"
+        },
+        "updated_at": "",
+        "updated_by": {
+            "guid": "",
+            "name": ""
+        }
+    },
+    "transaction_callback_id": "2317f7fb-fff1-4dfe-a83d-f9710d28d832",
+    "status": "Failed",
+    "payment_channel": {
+        "code": "IDR",
+        "created_at": "2025-07-24T07:28:53.44074",
+        "created_by": "System",
+        "how_to_pay": "<p>-</p>",
+        "id": "5acf2294-d383-4d89-9681-85049ef39671",
+        "logo_url": "",
+        "payment_gateaway": {
+            "created_at": "2025-07-24T07:26:50.549438",
+            "created_by": "System",
+            "description": "MWX Payment Processor",
+            "id": "b0891b3f-93b9-4391-b280-95c113d3ce18",
+            "image_url": "https://placehold.co/500",
+            "is_active": true,
+            "payment_method": "MWX Payment Processor"
+        },
+        "payment_method": {
+            "code": "FIAT",
+            "created_at": "2025-07-24T07:27:46.266953",
+            "created_by": "System",
+            "description": null,
+            "id": "c420926a-dbdd-427a-ae4a-70bfddedbe29",
+            "image_url": null,
+            "is_active": true,
+            "payment_gateaway": {
+                "created_at": "2025-07-24T07:26:50.549438",
+                "created_by": "System",
+                "description": "MWX Payment Processor",
+                "id": "b0891b3f-93b9-4391-b280-95c113d3ce18",
+                "image_url": "https://placehold.co/500",
+                "is_active": true,
+                "payment_method": "MWX Payment Processor"
+            },
+            "payment_method": "FIAT Payment"
+        },
+        "payment_name": "Rp (Rupiah)",
+        "payment_service_fee": 0,
+        "platform_fee": 0,
+        "status_payment_channel": true
+    },
+    "payment_url": "https://app-prod.duitku.com/redirect_checkout?reference=D1180826B10JVRN0TSPKMVG",
+    "qty": 1,
+    "valuta_code": "IDR",
+    "sub_total": 82500,
+    "platform_fee": 0,
+    "payment_service_fee": 0,
+    "total_discount": 4125,
+    "grand_total": 78375,
+    "transaction_detail": [
+        {
+            "grand_total": 82500,
+            "guid": "9a4ffeac-6957-44e5-8fff-02c3a42a14ec",
+            "merchant": {
+                "background_img": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "bank_account_number": "",
+                "bank_name": "",
+                "bank_owner_name": "",
+                "created_at": "2025-07-23T06:31:30.534352",
+                "created_by": {
+                    "guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "name": ""
+                },
+                "description": "Mediawave Indonesia",
+                "guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                "is_official_store": true,
+                "is_phone_number_verified": false,
+                "is_verified_by_admin": true,
+                "merchant_detail": {
+                    "bank_account_number": null,
+                    "bank_name": null,
+                    "bank_owner_name": null,
+                    "city": null,
+                    "city_id": null,
+                    "country": null,
+                    "country_id": null,
+                    "customer_guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "email": "CXBYd9xXQVmxJVd7tISodB3e3MGBYX547C8gDmddZ+M=",
+                    "full_name": "",
+                    "guid": "a54ff567-ea13-4202-97b8-8c82f95f6c89",
+                    "merchant_guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                    "phone_number": null,
+                    "username": "merchantmediawave"
+                },
+                "phone_number": "08126376721",
+                "profile_picture": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "status": "active",
+                "store_name": "Mediawave",
+                "updated_at": null,
+                "updated_by": {
+                    "guid": "",
+                    "name": ""
+                }
+            },
+            "product_name": "FinanceWhiz - Basic",
+            "product_price": 82500,
+            "purchase_type": {
+                "id": "5f40ea4e-adc9-480f-93ac-f84d09958ab8",
+                "name": "Basic",
+                "value": "30"
+            },
+            "qty": 1,
+            "total_discount": 0,
+            "transaction_id": "d9494078-2c87-4b61-ba3f-db1c2ebe9000"
+        }
+    ],
+    "created_at": "2026-01-23T04:13:27.998548",
+    "created_by": "{\"guid\":\"f4d33bf9-ae35-4e94-adaf-d3f87dd08b78\",\"name\":\"\"}"
+}
+Inserting transaction: d9494078-2c87-4b61-ba3f-db1c2ebe9000
+Value 0: length=36, first 100 chars: d9494078-2c87-4b61-ba3f-db1c2ebe9000
+Value 1: length=17, first 100 chars: TRX-20260123-3234
+Value 2: length=36, first 100 chars: f4d33bf9-ae35-4e94-adaf-d3f87dd08b78
+Value 3: length=36, first 100 chars: 2317f7fb-fff1-4dfe-a83d-f9710d28d832
+Value 4: length=6, first 100 chars: Failed
+Value 5: length=36, first 100 chars: 5acf2294-d383-4d89-9681-85049ef39671
+Value 6: length=3, first 100 chars: IDR
+Value 7: length=11, first 100 chars: Rp (Rupiah)
+Value 8: length=79, first 100 chars: https: //app-prod.duitku.com/redirect_checkout?reference=D1180826B10JVRN0TSPKMVG
+Value 9: 1
+Value 10: length=3, first 100 chars: IDR
+Value 11: 82500
+Value 12: 0
+Value 13: 0
+Value 14: 4125
+Value 15: 78375
+Value 16: 2026-01-22T21: 13: 27.998Z
+Value 17: undefined
+Value 18: undefined
+Processing transaction: a9106a26-3d0d-498f-9d1f-8bb24014e18f
+Transaction data: {
+    "guid": "a9106a26-3d0d-498f-9d1f-8bb24014e18f",
+    "invoice_number": "TRX-20260123-3233",
+    "customer": {
+        "guid": "1a61c963-b3e0-4ac2-8555-6ef0e2c81fcf",
+        "full_name": "Firman Firdaus",
+        "username": "robertstephenson",
+        "gender": "male",
+        "birth_date": "1995-12-06",
+        "identity_number": "+6281295661045",
+        "identity_img": "https://d3crbolxcia8ap.cloudfront.net/8853b1fa-bcf9-4b4c-9ed1-fe28f4735ce6.png",
+        "country_id": 102,
+        "country": "Indonesia",
+        "city_id": 154471,
+        "city": "Jakarta Selatan",
+        "is_identity_verified": true,
+        "bank_name": null,
+        "bank_account_number": null,
+        "bank_owner_name": null,
+        "phone_number": "",
+        "is_phone_number_verified": false,
+        "email": "firman@mediawave.co.id",
+        "is_email_verified": false,
+        "notification_un_read": 3,
+        "status": "active",
+        "corporate_name": "Mediawave",
+        "industry_name": "Teknologi & IT (SME Tech)",
+        "employee_qty": ">50",
+        "solution_corporate_needs": [
+            "Marketing"
+        ],
+        "merchant": null,
+        "is_completed": true,
+        "referal_code": "empty",
+        "is_free_trial_use": false,
+        "is_referal": false,
+        "created_at": "2025-10-03T10:23:25.748315",
+        "created_by": {
+            "guid": "",
+            "name": "by system"
+        },
+        "updated_at": "2026-01-23T04:06:56.162241",
+        "updated_by": {
+            "guid": "1a61c963-b3e0-4ac2-8555-6ef0e2c81fcf",
+            "name": "Firman Firdaus"
+        }
+    },
+    "transaction_callback_id": "ff8f3325-b7cd-49d9-a644-db9e7209d7b3",
+    "status": "Finished",
+    "payment_channel": {
+        "code": "IDR",
+        "created_at": "2025-07-24T07:28:53.44074",
+        "created_by": "System",
+        "how_to_pay": "<p>-</p>",
+        "id": "5acf2294-d383-4d89-9681-85049ef39671",
+        "logo_url": "",
+        "payment_gateaway": {
+            "created_at": "2025-07-24T07:26:50.549438",
+            "created_by": "System",
+            "description": "MWX Payment Processor",
+            "id": "b0891b3f-93b9-4391-b280-95c113d3ce18",
+            "image_url": "https://placehold.co/500",
+            "is_active": true,
+            "payment_method": "MWX Payment Processor"
+        },
+        "payment_method": {
+            "code": "FIAT",
+            "created_at": "2025-07-24T07:27:46.266953",
+            "created_by": "System",
+            "description": null,
+            "id": "c420926a-dbdd-427a-ae4a-70bfddedbe29",
+            "image_url": null,
+            "is_active": true,
+            "payment_gateaway": {
+                "created_at": "2025-07-24T07:26:50.549438",
+                "created_by": "System",
+                "description": "MWX Payment Processor",
+                "id": "b0891b3f-93b9-4391-b280-95c113d3ce18",
+                "image_url": "https://placehold.co/500",
+                "is_active": true,
+                "payment_method": "MWX Payment Processor"
+            },
+            "payment_method": "FIAT Payment"
+        },
+        "payment_name": "Rp (Rupiah)",
+        "payment_service_fee": 0,
+        "platform_fee": 0,
+        "status_payment_channel": true
+    },
+    "payment_url": "https://app-prod.duitku.com/redirect_checkout?reference=D11808263386ATF6E2RAP4S",
+    "qty": 1,
+    "valuta_code": "IDR",
+    "sub_total": 99000,
+    "platform_fee": 0,
+    "payment_service_fee": 0,
+    "total_discount": 0,
+    "grand_total": 99000,
+    "transaction_detail": [
+        {
+            "grand_total": 99000,
+            "guid": "43b38c70-29ad-4afa-b6f0-1b4d711a7839",
+            "merchant": {
+                "background_img": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "bank_account_number": "",
+                "bank_name": "",
+                "bank_owner_name": "",
+                "created_at": "2025-07-23T06:31:30.534352",
+                "created_by": {
+                    "guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "name": ""
+                },
+                "description": "Mediawave Indonesia",
+                "guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                "is_official_store": true,
+                "is_phone_number_verified": false,
+                "is_verified_by_admin": true,
+                "merchant_detail": {
+                    "bank_account_number": null,
+                    "bank_name": null,
+                    "bank_owner_name": null,
+                    "city": null,
+                    "city_id": null,
+                    "country": null,
+                    "country_id": null,
+                    "customer_guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "email": "CXBYd9xXQVmxJVd7tISodB3e3MGBYX547C8gDmddZ+M=",
+                    "full_name": "",
+                    "guid": "a54ff567-ea13-4202-97b8-8c82f95f6c89",
+                    "merchant_guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                    "phone_number": null,
+                    "username": "merchantmediawave"
+                },
+                "phone_number": "08126376721",
+                "profile_picture": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "status": "active",
+                "store_name": "Mediawave",
+                "updated_at": null,
+                "updated_by": {
+                    "guid": "",
+                    "name": ""
+                }
+            },
+            "product_name": "ReportWhiz - Basic",
+            "product_price": 99000,
+            "purchase_type": {
+                "id": "f1baa938-d35c-41b5-ad49-be609e33d617",
+                "name": "1 Month",
+                "value": "30"
+            },
+            "qty": 1,
+            "total_discount": 0,
+            "transaction_id": "a9106a26-3d0d-498f-9d1f-8bb24014e18f"
+        }
+    ],
+    "created_at": "2026-01-23T04:09:09.295605",
+    "created_by": "{\"guid\":\"1a61c963-b3e0-4ac2-8555-6ef0e2c81fcf\",\"name\":\"Firman Firdaus\"}"
+}
+Inserting transaction: a9106a26-3d0d-498f-9d1f-8bb24014e18f
+Value 0: length=36, first 100 chars: a9106a26-3d0d-498f-9d1f-8bb24014e18f
+Value 1: length=17, first 100 chars: TRX-20260123-3233
+Value 2: length=36, first 100 chars: 1a61c963-b3e0-4ac2-8555-6ef0e2c81fcf
+Value 3: length=36, first 100 chars: ff8f3325-b7cd-49d9-a644-db9e7209d7b3
+Value 4: length=8, first 100 chars: Finished
+Value 5: length=36, first 100 chars: 5acf2294-d383-4d89-9681-85049ef39671
+Value 6: length=3, first 100 chars: IDR
+Value 7: length=11, first 100 chars: Rp (Rupiah)
+Value 8: length=79, first 100 chars: https: //app-prod.duitku.com/redirect_checkout?reference=D11808263386ATF6E2RAP4S
+Value 9: 1
+Value 10: length=3, first 100 chars: IDR
+Value 11: 99000
+Value 12: 0
+Value 13: 0
+Value 14: 0
+Value 15: 99000
+Value 16: 2026-01-22T21: 09: 09.295Z
+Value 17: undefined
+Value 18: undefined
+Processing transaction: 6944334d-a9fc-4dfe-aee5-639c2e888ee6
+Transaction data: {
+    "guid": "6944334d-a9fc-4dfe-aee5-639c2e888ee6",
+    "invoice_number": "TRX-20260123-3232",
+    "customer": {
+        "guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+        "full_name": "test mwx",
+        "username": "tesmwx",
+        "gender": "male",
+        "birth_date": "2025-11-04",
+        "identity_number": "+62956345",
+        "identity_img": "https://d3crbolxcia8ap.cloudfront.net/69606b98-e01b-4a17-b59e-767f5f015b56.png",
+        "country_id": 102,
+        "country": "Indonesia",
+        "city_id": 56209,
+        "city": "Batang",
+        "is_identity_verified": true,
+        "bank_name": null,
+        "bank_account_number": null,
+        "bank_owner_name": null,
+        "phone_number": "",
+        "is_phone_number_verified": false,
+        "email": "testmwx@mailinator.com",
+        "is_email_verified": false,
+        "notification_un_read": 11,
+        "status": "active",
+        "corporate_name": "Aneka Jajanan Lokal",
+        "industry_name": "Food & Beverage",
+        "employee_qty": "11-50",
+        "solution_corporate_needs": [
+            "Marketing",
+            "Website",
+            "Sales"
+        ],
+        "merchant": {
+            "background_img": null,
+            "bank_account_number": "",
+            "bank_name": "",
+            "bank_owner_name": "",
+            "created_at": "2025-09-10T09:30:39.496133",
+            "created_by": {
+                "guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+                "name": "test mwx"
+            },
+            "description": "jualan snack",
+            "guid": "ab115b98-bf9c-43d3-be73-8f70c647f7f0",
+            "is_official_store": true,
+            "is_phone_number_verified": false,
+            "is_verified_by_admin": true,
+            "merchant_detail": {
+                "bank_account_number": null,
+                "bank_name": null,
+                "bank_owner_name": null,
+                "city": "Batang",
+                "city_id": 56209,
+                "country": "Indonesia",
+                "country_id": 102,
+                "customer_guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+                "email": "GM8dC7muNaRQXvw6060sy70cbZk4DV0GQ9jZpCP5EQA=",
+                "full_name": "test mwx",
+                "guid": "5d24b8b0-ae86-4676-8327-0f8c704a65d8",
+                "merchant_guid": "ab115b98-bf9c-43d3-be73-8f70c647f7f0",
+                "phone_number": "+62956345",
+                "username": "tesmwx"
+            },
+            "phone_number": "+62213421312",
+            "profile_picture": "https://d3crbolxcia8ap.cloudfront.net/c5603b09-f29d-4508-9681-cdc3ba9d46e8.png",
+            "status": "active",
+            "store_name": "warung mwx",
+            "updated_at": null,
+            "updated_by": {
+                "guid": "",
+                "name": ""
+            }
+        },
+        "is_completed": true,
+        "referal_code": "empty",
+        "is_free_trial_use": true,
+        "is_referal": false,
+        "created_at": "2025-09-10T07:13:21.547756",
+        "created_by": {
+            "guid": "",
+            "name": "by system"
+        },
+        "updated_at": "2025-11-20T02:53:37.89257",
+        "updated_by": {
+            "guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+            "name": "test mwx"
+        }
+    },
+    "transaction_callback_id": "",
+    "status": "Finished",
+    "payment_channel": {
+        "code": "free-referal",
+        "created_at": "2025-10-15T08:59:21.897651",
+        "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+        "how_to_pay": "<p>Free Trial for Referal User</p>",
+        "id": "6426af39-5b0f-4760-bee3-2048d79ac249",
+        "logo_url": "",
+        "payment_gateaway": {
+            "created_at": "2025-10-15T08:56:35.815476",
+            "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+            "description": "",
+            "id": "b0ced23c-fe30-4fe0-8572-5cae0d8ce296",
+            "image_url": "",
+            "is_active": true,
+            "payment_method": "MWX Market"
+        },
+        "payment_method": {
+            "code": "FREE-TRIAL",
+            "created_at": "2025-10-15T08:58:09.94794",
+            "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+            "description": "",
+            "id": "c1705a23-bfbb-432a-b9a5-a184d3b4f757",
+            "image_url": "",
+            "is_active": true,
+            "payment_gateaway": {
+                "created_at": "2025-10-15T08:56:35.815476",
+                "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+                "description": "",
+                "id": "b0ced23c-fe30-4fe0-8572-5cae0d8ce296",
+                "image_url": "",
+                "is_active": true,
+                "payment_method": "MWX Market"
+            },
+            "payment_method": "Free Trial"
+        },
+        "payment_name": "FREE TRIAL",
+        "payment_service_fee": 0,
+        "platform_fee": 0,
+        "status_payment_channel": true
+    },
+    "payment_url": "",
+    "qty": 1,
+    "valuta_code": "USD",
+    "sub_total": 6,
+    "platform_fee": 0,
+    "payment_service_fee": 0,
+    "total_discount": 0,
+    "grand_total": 6,
+    "transaction_detail": [
+        {
+            "grand_total": 6,
+            "guid": "be274a4d-3e0e-49c4-876c-f1a5eebfa615",
+            "merchant": {
+                "background_img": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "bank_account_number": "",
+                "bank_name": "",
+                "bank_owner_name": "",
+                "created_at": "2025-07-23T06:31:30.534352",
+                "created_by": {
+                    "guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "name": ""
+                },
+                "description": "Mediawave Indonesia",
+                "guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                "is_official_store": true,
+                "is_phone_number_verified": false,
+                "is_verified_by_admin": true,
+                "merchant_detail": {
+                    "bank_account_number": null,
+                    "bank_name": null,
+                    "bank_owner_name": null,
+                    "city": null,
+                    "city_id": null,
+                    "country": null,
+                    "country_id": null,
+                    "customer_guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "email": "CXBYd9xXQVmxJVd7tISodB3e3MGBYX547C8gDmddZ+M=",
+                    "full_name": "",
+                    "guid": "a54ff567-ea13-4202-97b8-8c82f95f6c89",
+                    "merchant_guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                    "phone_number": null,
+                    "username": "merchantmediawave"
+                },
+                "phone_number": "08126376721",
+                "profile_picture": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "status": "active",
+                "store_name": "Mediawave",
+                "updated_at": null,
+                "updated_by": {
+                    "guid": "",
+                    "name": ""
+                }
+            },
+            "product_name": "SalesWhiz - Basic",
+            "product_price": 6,
+            "purchase_type": {
+                "id": "5f40ea4e-adc9-480f-93ac-f84d09958ab8",
+                "name": "Basic",
+                "value": "30"
+            },
+            "qty": 1,
+            "total_discount": 0,
+            "transaction_id": "6944334d-a9fc-4dfe-aee5-639c2e888ee6"
+        }
+    ],
+    "created_at": "2026-01-23T03:52:03.586701",
+    "created_by": "{\"guid\": \"\", \"name\": \"system\"}"
+}
+Inserting transaction: 6944334d-a9fc-4dfe-aee5-639c2e888ee6
+Value 0: length=36, first 100 chars: 6944334d-a9fc-4dfe-aee5-639c2e888ee6
+Value 1: length=17, first 100 chars: TRX-20260123-3232
+Value 2: length=36, first 100 chars: 855aa082-aab4-422d-a5ed-8fdf9ea8aecb
+Value 3: length=0, first 100 chars:
+Value 4: length=8, first 100 chars: Finished
+Value 5: length=36, first 100 chars: 6426af39-5b0f-4760-bee3-2048d79ac249
+Value 6: length=12, first 100 chars: free-referal
+Value 7: length=10, first 100 chars: FREE TRIAL
+Value 8: length=0, first 100 chars:
+Value 9: 1
+Value 10: length=3, first 100 chars: USD
+Value 11: 6
+Value 12: 0
+Value 13: 0
+Value 14: 0
+Value 15: 6
+Value 16: 2026-01-22T20: 52: 03.586Z
+Value 17: undefined
+Value 18: undefined
+Processing transaction: fef0ee45-a15f-429d-bbf4-398143617d2d
+Transaction data: {
+    "guid": "fef0ee45-a15f-429d-bbf4-398143617d2d",
+    "invoice_number": "TRX-20260123-3231",
+    "customer": {
+        "guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+        "full_name": "test mwx",
+        "username": "tesmwx",
+        "gender": "male",
+        "birth_date": "2025-11-04",
+        "identity_number": "+62956345",
+        "identity_img": "https://d3crbolxcia8ap.cloudfront.net/69606b98-e01b-4a17-b59e-767f5f015b56.png",
+        "country_id": 102,
+        "country": "Indonesia",
+        "city_id": 56209,
+        "city": "Batang",
+        "is_identity_verified": true,
+        "bank_name": null,
+        "bank_account_number": null,
+        "bank_owner_name": null,
+        "phone_number": "",
+        "is_phone_number_verified": false,
+        "email": "testmwx@mailinator.com",
+        "is_email_verified": false,
+        "notification_un_read": 11,
+        "status": "active",
+        "corporate_name": "Aneka Jajanan Lokal",
+        "industry_name": "Food & Beverage",
+        "employee_qty": "11-50",
+        "solution_corporate_needs": [
+            "Marketing",
+            "Website",
+            "Sales"
+        ],
+        "merchant": {
+            "background_img": null,
+            "bank_account_number": "",
+            "bank_name": "",
+            "bank_owner_name": "",
+            "created_at": "2025-09-10T09:30:39.496133",
+            "created_by": {
+                "guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+                "name": "test mwx"
+            },
+            "description": "jualan snack",
+            "guid": "ab115b98-bf9c-43d3-be73-8f70c647f7f0",
+            "is_official_store": true,
+            "is_phone_number_verified": false,
+            "is_verified_by_admin": true,
+            "merchant_detail": {
+                "bank_account_number": null,
+                "bank_name": null,
+                "bank_owner_name": null,
+                "city": "Batang",
+                "city_id": 56209,
+                "country": "Indonesia",
+                "country_id": 102,
+                "customer_guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+                "email": "GM8dC7muNaRQXvw6060sy70cbZk4DV0GQ9jZpCP5EQA=",
+                "full_name": "test mwx",
+                "guid": "5d24b8b0-ae86-4676-8327-0f8c704a65d8",
+                "merchant_guid": "ab115b98-bf9c-43d3-be73-8f70c647f7f0",
+                "phone_number": "+62956345",
+                "username": "tesmwx"
+            },
+            "phone_number": "+62213421312",
+            "profile_picture": "https://d3crbolxcia8ap.cloudfront.net/c5603b09-f29d-4508-9681-cdc3ba9d46e8.png",
+            "status": "active",
+            "store_name": "warung mwx",
+            "updated_at": null,
+            "updated_by": {
+                "guid": "",
+                "name": ""
+            }
+        },
+        "is_completed": true,
+        "referal_code": "empty",
+        "is_free_trial_use": true,
+        "is_referal": false,
+        "created_at": "2025-09-10T07:13:21.547756",
+        "created_by": {
+            "guid": "",
+            "name": "by system"
+        },
+        "updated_at": "2025-11-20T02:53:37.89257",
+        "updated_by": {
+            "guid": "855aa082-aab4-422d-a5ed-8fdf9ea8aecb",
+            "name": "test mwx"
+        }
+    },
+    "transaction_callback_id": "",
+    "status": "Finished",
+    "payment_channel": {
+        "code": "free-referal",
+        "created_at": "2025-10-15T08:59:21.897651",
+        "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+        "how_to_pay": "<p>Free Trial for Referal User</p>",
+        "id": "6426af39-5b0f-4760-bee3-2048d79ac249",
+        "logo_url": "",
+        "payment_gateaway": {
+            "created_at": "2025-10-15T08:56:35.815476",
+            "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+            "description": "",
+            "id": "b0ced23c-fe30-4fe0-8572-5cae0d8ce296",
+            "image_url": "",
+            "is_active": true,
+            "payment_method": "MWX Market"
+        },
+        "payment_method": {
+            "code": "FREE-TRIAL",
+            "created_at": "2025-10-15T08:58:09.94794",
+            "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+            "description": "",
+            "id": "c1705a23-bfbb-432a-b9a5-a184d3b4f757",
+            "image_url": "",
+            "is_active": true,
+            "payment_gateaway": {
+                "created_at": "2025-10-15T08:56:35.815476",
+                "created_by": "{\"guid\":\"\",\"name\":\"\"}",
+                "description": "",
+                "id": "b0ced23c-fe30-4fe0-8572-5cae0d8ce296",
+                "image_url": "",
+                "is_active": true,
+                "payment_method": "MWX Market"
+            },
+            "payment_method": "Free Trial"
+        },
+        "payment_name": "FREE TRIAL",
+        "payment_service_fee": 0,
+        "platform_fee": 0,
+        "status_payment_channel": true
+    },
+    "payment_url": "",
+    "qty": 1,
+    "valuta_code": "USD",
+    "sub_total": 7,
+    "platform_fee": 0,
+    "payment_service_fee": 0,
+    "total_discount": 0,
+    "grand_total": 7,
+    "transaction_detail": [
+        {
+            "grand_total": 7,
+            "guid": "3cb4594a-d610-41bc-a703-0cb9e30a2e80",
+            "merchant": {
+                "background_img": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "bank_account_number": "",
+                "bank_name": "",
+                "bank_owner_name": "",
+                "created_at": "2025-07-23T06:31:30.534352",
+                "created_by": {
+                    "guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "name": ""
+                },
+                "description": "Mediawave Indonesia",
+                "guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                "is_official_store": true,
+                "is_phone_number_verified": false,
+                "is_verified_by_admin": true,
+                "merchant_detail": {
+                    "bank_account_number": null,
+                    "bank_name": null,
+                    "bank_owner_name": null,
+                    "city": null,
+                    "city_id": null,
+                    "country": null,
+                    "country_id": null,
+                    "customer_guid": "e111d17b-0428-4bc3-b6bf-aa250d428d40",
+                    "email": "CXBYd9xXQVmxJVd7tISodB3e3MGBYX547C8gDmddZ+M=",
+                    "full_name": "",
+                    "guid": "a54ff567-ea13-4202-97b8-8c82f95f6c89",
+                    "merchant_guid": "ef8b1813-fabb-4c31-9fcd-11cab8d4949c",
+                    "phone_number": null,
+                    "username": "merchantmediawave"
+                },
+                "phone_number": "08126376721",
+                "profile_picture": "https://d3crbolxcia8ap.cloudfront.net/cf50fb67-b32d-4263-a70a-8b0c2a69c754.jpeg",
+                "status": "active",
+                "store_name": "Mediawave",
+                "updated_at": null,
+                "updated_by": {
+                    "guid": "",
+                    "name": ""
+                }
+            },
+            "product_name": "LegalWhiz - Basic",
+            "product_price": 7,
+            "purchase_type": {
+                "id": "5f40ea4e-adc9-480f-93ac-f84d09958ab8",
+                "name": "Basic",
+                "value": "30"
+            },
+            "qty": 1,
+            "total_discount": 0,
+            "transaction_id": "fef0ee45-a15f-429d-bbf4-398143617d2d"
+        }
+    ],
+    "created_at": "2026-01-23T03:52:03.586701",
+    "created_by": "{\"guid\": \"\", \"name\": \"system\"}"
+}
+Inserting transaction: fef0ee45-a15f-429d-bbf4-398143617d2d
+Value 0: length=36, first 100 chars: fef0ee45-a15f-429d-bbf4-398143617d2d
+Value 1: length=17, first 100 chars: TRX-20260123-3231
+Value 2: length=36, first 100 chars: 855aa082-aab4-422d-a5ed-8fdf9ea8aecb
+Value 3: length=0, first 100 chars:
+Value 4: length=8, first 100 chars: Finished
+Value 5: length=36, first 100 chars: 6426af39-5b0f-4760-bee3-2048d79ac249
+Value 6: length=12, first 100 chars: free-referal
+Value 7: length=10, first 100 chars: FREE TRIAL
+Value 8: length=0, first 100 chars:
+Value 9: 1
+Value 10: length=3, first 100 chars: USD
+Value 11: 7
+Value 12: 0
+Value 13: 0
+Value 14: 0
+Value 15: 7
+Value 16: 2026-01-22T20: 52: 03.586Z
+Value 17: undefined
+Value 18: undefined

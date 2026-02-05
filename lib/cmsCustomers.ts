@@ -140,6 +140,15 @@ export async function getCmsCustomers(
   } else if (statusFilter === 'expired_apps') {
     // Filter by users with expired subscriptions
     whereConditions.push(`subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(subscribe_list) AS sub, jsonb_array_elements(sub->'product_list') AS prod WHERE (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP)`);
+  } else if (statusFilter === 'expiring_soon') {
+    // Akan expired dalam 7 hari ke depan
+    whereConditions.push(`subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0 AND EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(subscribe_list) AS sub,
+           jsonb_array_elements(sub->'product_list') AS prod
+      WHERE (prod->>'expired_at')::timestamp >= CURRENT_TIMESTAMP
+        AND (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP + INTERVAL '7 days'
+    )`);
   }
 
   // Handle appFilter (specific application) - only if status allows subscriptions
@@ -244,34 +253,43 @@ export async function getCmsCustomersCount(search: string = '', referralPartnerF
 
   if (search) {
     whereConditions.push(`(
-      username ILIKE $${paramIndex} OR
-      full_name ILIKE $${paramIndex + 1} OR
-      email ILIKE $${paramIndex + 2}
+      c.username ILIKE $${paramIndex} OR
+      c.full_name ILIKE $${paramIndex + 1} OR
+      c.email ILIKE $${paramIndex + 2}
     )`);
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     paramIndex += 3;
   }
 
   if (referralPartnerFilter !== 'all') {
-    whereConditions.push(`referal_code = $${paramIndex}`);
+    whereConditions.push(`c.referal_code = $${paramIndex}`);
     params.push(referralPartnerFilter);
     paramIndex += 1;
   }
 
   // Handle statusFilter (subscription status)
   if (statusFilter === 'without_apps') {
-    whereConditions.push(`(subscribe_list IS NULL OR jsonb_array_length(subscribe_list) = 0)`);
+    whereConditions.push(`(c.subscribe_list IS NULL OR jsonb_array_length(c.subscribe_list) = 0)`);
   } else if (statusFilter === 'with_apps') {
-    whereConditions.push(`subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0`);
+    whereConditions.push(`c.subscribe_list IS NOT NULL AND jsonb_array_length(c.subscribe_list) > 0`);
   } else if (statusFilter === 'expired_apps') {
     // Filter by users with expired subscriptions
-    whereConditions.push(`subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(subscribe_list) AS sub, jsonb_array_elements(sub->'product_list') AS prod WHERE (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP)`);
+    whereConditions.push(`c.subscribe_list IS NOT NULL AND jsonb_array_length(c.subscribe_list) > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(c.subscribe_list) AS sub, jsonb_array_elements(sub->'product_list') AS prod WHERE (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP)`);
+  } else if (statusFilter === 'expiring_soon') {
+    // Akan expired dalam 7 hari ke depan
+    whereConditions.push(`c.subscribe_list IS NOT NULL AND jsonb_array_length(c.subscribe_list) > 0 AND EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(c.subscribe_list) AS sub,
+           jsonb_array_elements(sub->'product_list') AS prod
+      WHERE (prod->>'expired_at')::timestamp >= CURRENT_TIMESTAMP
+        AND (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP + INTERVAL '7 days'
+    )`);
   }
 
   // Handle appFilter (specific application) - only if status allows subscriptions
   if (appFilter !== 'all' && statusFilter !== 'without_apps') {
     // Filter by specific application name
-    whereConditions.push(`subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(subscribe_list) AS sub, jsonb_array_elements(sub->'product_list') AS prod WHERE prod->>'product_name' = $${paramIndex})`);
+    whereConditions.push(`c.subscribe_list IS NOT NULL AND jsonb_array_length(c.subscribe_list) > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(c.subscribe_list) AS sub, jsonb_array_elements(sub->'product_list') AS prod WHERE prod->>'product_name' = $${paramIndex})`);
     params.push(appFilter);
     paramIndex += 1;
   }
@@ -641,19 +659,27 @@ export async function getDailySummary(): Promise<{
     ORDER BY DATE(created_at)
   `;
 
-  // Query untuk purchases (credit transactions) per hari (cumulative dari awal bulan)
+  // Query untuk finished IDR purchases: monthly distinct users buyers YTD, cumulative
   const purchasesQuery = `
-    SELECT
-      DATE(created_at) as date,
-      COUNT(*) as count,
-      SUM(COUNT(*)) OVER (ORDER BY DATE(created_at) ROWS UNBOUNDED PRECEDING) as cumulative
-    FROM credit_manager_transactions
-    WHERE LOWER(type) = 'credit'
-      AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-      AND created_at <= CURRENT_DATE
-    GROUP BY DATE(created_at)
-    ORDER BY DATE(created_at)
+    WITH monthly_counts AS (
+      SELECT
+        DATE_TRUNC('month', t.created_at) as month,
+        COUNT(DISTINCT t.customer_guid) as count
+      FROM transactions t
+      LEFT JOIN cms_customers c ON t.customer_guid = c.guid
+      LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+      WHERE LOWER(t.status) = 'finished'
+        AND UPPER(t.valuta_code) = 'IDR'
+        AND dee.email IS NULL
+        AND t.created_at >= DATE_TRUNC('year', CURRENT_DATE)
+        AND t.created_at <= CURRENT_DATE
+      GROUP BY DATE_TRUNC('month', t.created_at)
+    )
+    SELECT month::date as date, count, SUM(count) OVER (ORDER BY month ROWS UNBOUNDED PRECEDING)::int as cumulative
+    FROM monthly_counts
+    ORDER BY month
   `;
+
 
   const [newUsersResult, purchasesResult] = await Promise.all([
     pool.query(newUsersQuery),

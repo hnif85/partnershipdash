@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 type Customer = {
   guid?: string;
@@ -83,6 +84,11 @@ type DashboardData = {
   timestamp: string;
 };
 
+type ReferralPartnersData = Array<{
+  partner: string;
+  code: string;
+}>;
+
 
 
 const formatDate = (value?: string | null) => {
@@ -93,17 +99,22 @@ const formatDate = (value?: string | null) => {
 };
 
 export default function CustomersPage() {
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("statusFilter") || "all";
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [referralPartners, setReferralPartners] = useState<ReferralPartnersData>([]);
   const [loading, setLoading] = useState(true);
   const [dashboardLoading, setDashboardLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
   const [totalCount, setTotalCount] = useState(0);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [appFilter, setAppFilter] = useState<string>("all");
+  const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
   const [applications, setApplications] = useState<string[]>([]);
 
   // Chart data
@@ -128,6 +139,15 @@ export default function CustomersPage() {
   const [syncCustomersLoading, setSyncCustomersLoading] = useState(false);
   const [syncCustomersMessage, setSyncCustomersMessage] = useState<string | null>(null);
   const [syncCustomersSuccess, setSyncCustomersSuccess] = useState<boolean | null>(null);
+
+  // Sync all state
+  const [syncAllLoading, setSyncAllLoading] = useState(false);
+  const [syncAllMessage, setSyncAllMessage] = useState<string | null>(null);
+  const [syncAllSuccess, setSyncAllSuccess] = useState<boolean | null>(null);
+  const [syncAllCustomerCount, setSyncAllCustomerCount] = useState<number>(0);
+  const [syncAllTransactionCount, setSyncAllTransactionCount] = useState<number>(0);
+  const [syncAllPurchaseCount, setSyncAllPurchaseCount] = useState<number>(0);
+  const fetchIdRef = useRef(0);
 
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false);
@@ -161,6 +181,15 @@ export default function CustomersPage() {
     fetchDashboard();
   }, []);
 
+  // Apply statusFilter from query string (e.g., ?statusFilter=expiring_soon)
+  useEffect(() => {
+    const param = searchParams.get("statusFilter");
+    if (param && param !== statusFilter) {
+      setStatusFilter(param);
+      setPage(1);
+    }
+  }, [searchParams, statusFilter]);
+
   // Fetch applications list
   useEffect(() => {
     const fetchApplications = async () => {
@@ -181,6 +210,7 @@ export default function CustomersPage() {
   // Load customer data with search and filter
   useEffect(() => {
     const loadCustomers = async () => {
+      const fetchId = ++fetchIdRef.current;
       setLoading(true);
       setError(null);
       try {
@@ -190,6 +220,7 @@ export default function CustomersPage() {
           search: search,
           statusFilter: statusFilter,
           appFilter: appFilter,
+          referral_partner: referralPartnerFilter,
         });
 
         const apiUrl = `/api/cms-customers?${params}`;
@@ -199,24 +230,39 @@ export default function CustomersPage() {
 
         if (!data.customers) throw new Error(data.error || "Payload kosong");
 
+        if (fetchId !== fetchIdRef.current) return;
+
         setCustomers(data.customers);
+        setReferralPartners(
+          (data.referralPartners || [])
+            .filter(rp => rp.partner && rp.code)
+            .map(rp => ({ partner: rp.partner!, code: rp.code! }))
+        );
         setTotalCount(data.total_count || 0);
       } catch (err) {
+        if (fetchId !== fetchIdRef.current) return;
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
-        setLoading(false);
+        if (fetchId === fetchIdRef.current) {
+          setLoading(false);
+        }
       }
     };
 
     loadCustomers();
-  }, [page, search, appFilter]);
+  }, [page, search, statusFilter, appFilter, referralPartnerFilter]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageSafe = Math.min(page, totalPages);
 
   useEffect(() => {
     setPage(1);
-  }, [search, appFilter]);
+  }, [search, statusFilter, appFilter, referralPartnerFilter]);
+
+  // Sync search input with search state
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
 
   // Sync usage function
   const syncUsage = async () => {
@@ -271,7 +317,7 @@ export default function CustomersPage() {
         setSyncCustomersMessage(`✅ Sync berhasil! ${data.success_count || 0} customer berhasil, ${data.error_count || 0} error. Total diproses: ${data.total_processed || 0}`);
 
         // Refresh customer data after sync
-        const customersRes = await fetch(`/api/cms-customers?page=${page}&limit=${pageSize}&search=${search}&statusFilter=${statusFilter}&appFilter=${appFilter}`, { cache: "no-store" });
+        const customersRes = await fetch(`/api/cms-customers?page=${page}&limit=${pageSize}&search=${search}&statusFilter=${statusFilter}&appFilter=${appFilter}&referral_partner=${referralPartnerFilter}`, { cache: "no-store" });
         if (customersRes.ok) {
           const customersData = await customersRes.json();
           setCustomers(customersData.customers || []);
@@ -293,6 +339,92 @@ export default function CustomersPage() {
       setSyncCustomersMessage(`❌ Error: ${error instanceof Error ? error.message : 'Network error'}`);
     } finally {
       setSyncCustomersLoading(false);
+    }
+  };
+
+  // Sync all function
+  const syncAll = async () => {
+    setSyncAllLoading(true);
+    setSyncAllMessage(null);
+    setSyncAllSuccess(null);
+    setSyncAllCustomerCount(0);
+    setSyncAllTransactionCount(0);
+    setSyncAllPurchaseCount(0);
+
+    try {
+      // Step 1: Sync customers
+      setSyncAllMessage("🔄 Mengambil customer...");
+      const customerRes = await fetch('/api/sync-customers', {
+        method: 'POST',
+      });
+
+      if (!customerRes.ok) {
+        throw new Error('Failed to sync customers');
+      }
+
+      const customerData = await customerRes.json();
+      const customersAdded = customerData.success_count || 0;
+      setSyncAllCustomerCount(customersAdded);
+
+      setSyncAllMessage(`✅ Berhasil mengambil customer - ${customersAdded} customer baru`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause to show status
+
+      // Step 2: Sync transactions (purchase)
+      setSyncAllMessage("🔄 Mengambil transaksi...");
+      const transactionRes = await fetch('/api/sync-transactions', {
+        method: 'POST',
+      });
+
+      if (!transactionRes.ok) {
+        throw new Error('Failed to sync transactions');
+      }
+
+      const transactionData = await transactionRes.json();
+      const transactionsAdded = transactionData.success_count || 0;
+      setSyncAllTransactionCount(transactionsAdded);
+
+      setSyncAllMessage(`✅ Berhasil mengambil transaksi - ${transactionsAdded} transaksi baru`);
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause to show status
+
+      // Step 3: Sync usage (credit manager transactions)
+      setSyncAllMessage("🔄 Mengsinkronkan usage...");
+      const usageRes = await fetch('/api/sync-credit-manager-transactions', {
+        method: 'POST',
+      });
+
+      if (!usageRes.ok) {
+        throw new Error('Failed to sync usage transactions');
+      }
+
+      const usageData = await usageRes.json();
+      const usagesAdded = usageData.success_count || 0;
+      setSyncAllPurchaseCount(usagesAdded);
+
+      setSyncAllMessage(`✅ Berhasil mengsinkronkan usage - ${usagesAdded} penggunaan kredit baru`);
+      setSyncAllSuccess(true);
+
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Brief pause
+
+      setSyncAllMessage(`🎉 Sync semua selesai! ${customersAdded} customer baru, ${transactionsAdded} transaksi baru, ${usagesAdded} penggunaan kredit baru`);
+
+      // Refresh customer data and dashboard after sync
+      const customersRes = await fetch(`/api/cms-customers?page=${page}&limit=${pageSize}&search=${search}&statusFilter=${statusFilter}&appFilter=${appFilter}&referral_partner=${referralPartnerFilter}`, { cache: "no-store" });
+      if (customersRes.ok) {
+        const customersData = await customersRes.json();
+        setCustomers(customersData.customers || []);
+        setTotalCount(customersData.total_count || 0);
+      }
+
+      const dashboardRes = await fetch("/api/dashboard");
+      if (dashboardRes.ok) {
+        const dashboardData = await dashboardRes.json();
+        setDashboardData(dashboardData);
+      }
+    } catch (error) {
+      setSyncAllSuccess(false);
+      setSyncAllMessage(`❌ Error: ${error instanceof Error ? error.message : 'Network error'}`);
+    } finally {
+      setSyncAllLoading(false);
     }
   };
 
@@ -375,6 +507,25 @@ export default function CustomersPage() {
                   )}
                 </button>
                 <button
+                  onClick={syncAll}
+                  disabled={syncAllLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-orange-600 bg-orange-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {syncAllLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Syncing All...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15M9 9V3m0 3h6" />
+                      </svg>
+                      <span>Sync All</span>
+                    </>
+                  )}
+                </button>
+                <button
                   onClick={syncUsage}
                   disabled={syncLoading}
                   className="inline-flex items-center gap-2 rounded-lg border border-green-600 bg-green-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -402,6 +553,15 @@ export default function CustomersPage() {
                       : 'bg-red-50 text-red-700 border border-red-200'
                   }`}>
                     {syncMessage}
+                  </div>
+                )}
+                {syncAllMessage && (
+                  <div className={`text-xs px-2 py-1 rounded ${
+                    syncAllSuccess
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'bg-red-50 text-red-700 border border-red-200'
+                  }`}>
+                    {syncAllMessage}
                   </div>
                 )}
                 {syncCustomersMessage && (
@@ -435,10 +595,10 @@ export default function CustomersPage() {
                 <p className="mt-2 text-2xl font-bold text-[#0f172a]">{totalCount}</p>
                 
                 <p className="text-xs text-zinc-500 mt-1">
-                  {(dashboardData?.creditStats.users_with_transactions || 0).toLocaleString("id-ID")} Customer yang aktif (pernah transaksi atau punya subscription)
+                  {(dashboardData?.creditStats?.users_with_transactions ?? 0).toLocaleString("id-ID")} Customer yang aktif (pernah transaksi atau punya subscription)
                 </p>
                 <p className="text-xs text-zinc-500 mt-1">
-                  {(dashboardData?.customerStats.total_customers || 0).toLocaleString("id-ID")} Total customer terdaftar
+                  {(dashboardData?.customerStats?.total_customers ?? 0).toLocaleString("id-ID")} Total customer terdaftar
                 </p>
               </div>
 
@@ -446,22 +606,22 @@ export default function CustomersPage() {
               <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase text-red-600">Expired Users</p>
                 <p className="mt-2 text-2xl font-bold text-red-800">
-                  {dashboardData?.customerStats.total_customers ?
+                  {dashboardData?.customerStats?.total_customers ?
                     Math.round(((dashboardData.customerStats.expired_users || 0) / dashboardData.customerStats.total_customers) * 100) : 0}%
                 </p>
                 <p className="text-xs text-red-600 mt-1">
-                  {(dashboardData?.customerStats.expired_users || 0).toLocaleString("id-ID")} dari {(dashboardData?.customerStats.total_customers || 0).toLocaleString("id-ID")} total users
+                  {(dashboardData?.customerStats?.expired_users ?? 0).toLocaleString("id-ID")} dari {(dashboardData?.customerStats?.total_customers ?? 0).toLocaleString("id-ID")} total users
                 </p>
               </div>
 
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
                 <p className="text-xs font-semibold uppercase text-emerald-600">Active User Ratio</p>
                 <p className="mt-2 text-2xl font-bold text-emerald-800">
-                  {dashboardData?.customerStats.total_customers ?
+                  {dashboardData?.customerStats?.total_customers ?
                     Math.round(((dashboardData.customerStats.active_customers || 0) / dashboardData.customerStats.total_customers) * 100) : 0}%
                 </p>
                 <p className="text-xs text-emerald-600 mt-1">
-                  {(dashboardData?.customerStats.active_customers || 0).toLocaleString("id-ID")} dari {(dashboardData?.customerStats.total_customers || 0).toLocaleString("id-ID")}
+                  {(dashboardData?.customerStats?.active_customers ?? 0).toLocaleString("id-ID")} dari {(dashboardData?.customerStats?.total_customers ?? 0).toLocaleString("id-ID")}
                 </p>
               </div>
 
@@ -474,7 +634,7 @@ export default function CustomersPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-4">
                 <div>
                   <p className="text-xs font-semibold uppercase text-zinc-500">Transaction Charts</p>
-                  <h2 className="text-lg font-semibold text-[#0f172a]">Frekuensi Credit & Debit Terpisah</h2>
+                  <h2 className="text-lg font-semibold text-[#0f172a]">Frekuensi Penggunaan </h2>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
@@ -660,11 +820,20 @@ export default function CustomersPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
                     placeholder="Cari nama atau email..."
                     className="w-64 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
                   />
+                  <button
+                    onClick={() => setSearch(searchInput)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#1f3c88] bg-[#1f3c88] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#1f3c88]/90"
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    Cari
+                  </button>
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -674,6 +843,7 @@ export default function CustomersPage() {
                     <option value="with_apps">Dengan Aplikasi</option>
                     <option value="without_apps">Tanpa Aplikasi</option>
                     <option value="expired_apps">Aplikasi Expired</option>
+                    <option value="expiring_soon">Akan Expired &lt; 7 hari</option>
                   </select>
                   <select
                     value={appFilter}
@@ -684,6 +854,18 @@ export default function CustomersPage() {
                     {applications.map((app) => (
                       <option key={app} value={app}>
                         {app}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={referralPartnerFilter}
+                    onChange={(e) => setReferralPartnerFilter(e.target.value)}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                  >
+                    <option value="all">Partner: Semua</option>
+                    {referralPartners.map((partner) => (
+                      <option key={partner.code} value={partner.code}>
+                        {partner.partner} ({partner.code})
                       </option>
                     ))}
                   </select>
@@ -718,6 +900,9 @@ export default function CustomersPage() {
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                           Kredit
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                          Partner
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                           Aplikasi
@@ -785,6 +970,8 @@ export default function CustomersPage() {
 
                         const subscriptionApps = getSubscriptionApps();
 
+                        const partnerName = referralPartners.find(rp => rp.code === customer.referal_code)?.partner || "-";
+
                         return (
                           <tr key={customer.guid || customer.email} className="hover:bg-[#f7f8fb]">
                             <td className="px-4 py-3">
@@ -798,6 +985,9 @@ export default function CustomersPage() {
                               <div className="text-xs text-zinc-500">
                                 -{(customer.credit_used ?? 0).toLocaleString("id-ID")}
                               </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-zinc-700">
+                              {partnerName}
                             </td>
                             <td className="px-4 py-3">
                               <div className="space-y-1">

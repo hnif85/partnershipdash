@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('end_date') || '';
     const customerGuid = searchParams.get('customer_guid') || '';
     const paymentChannel = searchParams.get('payment_channel') || '';
+    const referral = searchParams.get('referral') || '';
 
     const offset = (page - 1) * limit;
 
@@ -79,6 +80,12 @@ export async function GET(request: Request) {
       paramIndex += 1;
     }
 
+    if (referral) {
+      whereConditions.push(`rp.partner ILIKE $${paramIndex}`);
+      params.push(`%${referral}%`);
+      paramIndex += 1;
+    }
+
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
     // Query to get transactions with customer info (excluding demo emails)
@@ -106,6 +113,7 @@ export async function GET(request: Request) {
         t.created_at,
         t.created_by_guid,
         t.created_by_name,
+        rp.partner as referral_name,
         COALESCE(
           json_agg(
             json_build_object(
@@ -128,9 +136,10 @@ export async function GET(request: Request) {
       FROM transactions t
       LEFT JOIN cms_customers c ON t.customer_guid = c.guid
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+      LEFT JOIN referral_partners rp ON c.referal_code = rp.code
       LEFT JOIN transaction_details td ON t.guid = td.transaction_guid
       ${whereClause}
-      GROUP BY t.guid, c.guid, c.full_name, c.username, c.email
+      GROUP BY t.guid, c.guid, c.full_name, c.username, c.email, rp.partner
       ORDER BY t.created_at DESC
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
@@ -139,10 +148,13 @@ export async function GET(request: Request) {
 
     // Query to get total count (excluding demo emails)
     const countQuery = `
-      SELECT COUNT(DISTINCT t.guid) as total_count
+      SELECT 
+        COUNT(DISTINCT t.guid) as total_count,
+        COUNT(DISTINCT t.customer_guid) as unique_customer_count
       FROM transactions t
       LEFT JOIN cms_customers c ON t.customer_guid = c.guid
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+      LEFT JOIN referral_partners rp ON c.referal_code = rp.code
       ${whereClause}
     `;
 
@@ -159,10 +171,12 @@ export async function GET(request: Request) {
     }));
 
     const totalCount = parseInt(countResult.rows[0].total_count);
+    const uniqueCustomerCount = parseInt(countResult.rows[0].unique_customer_count || '0');
 
     return NextResponse.json({
       transactions,
       total_count: totalCount,
+      unique_customer_count: uniqueCustomerCount,
       page,
       limit,
       total_pages: Math.ceil(totalCount / limit)

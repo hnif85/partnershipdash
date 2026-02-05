@@ -27,6 +27,7 @@ type Transaction = {
   created_at: string;
   created_by_guid: string;
   created_by_name: string;
+  referral_name?: string;
   transaction_details?: TransactionDetail[];
 };
 
@@ -48,6 +49,7 @@ type TransactionDetail = {
 type ApiResponse = {
   transactions?: Transaction[];
   total_count?: number;
+  unique_customer_count?: number;
   page?: number;
   limit?: number;
   total_pages?: number;
@@ -100,9 +102,12 @@ export default function TransactionsPage() {
   const [endDate, setEndDate] = useState<string>("");
   const [customerFilter, setCustomerFilter] = useState<string>("");
   const [paymentFilter, setPaymentFilter] = useState<string>("");
+  const [referralFilter, setReferralFilter] = useState<string>("");
+  const [referrals, setReferrals] = useState<string[]>([]);
   const [paymentChannels, setPaymentChannels] = useState<Array<{name: string, code: string}>>([]);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const [uniqueCustomerCount, setUniqueCustomerCount] = useState(0);
   const [globalStats, setGlobalStats] = useState({
     total_transactions: 0,
     finished_transactions: 0,
@@ -115,22 +120,24 @@ export default function TransactionsPage() {
     total_processed: number;
     success_count: number;
     error_count: number;
+    errors?: Array<{ guid: string; error?: string }>;
   } | null>(null);
   const [updateStartDate, setUpdateStartDate] = useState<string>("");
-  const [updateEndDate, setUpdateEndDate] = useState<string>("");
+  const [updateEndDate, setUpdateEndDate] = useState<string>(""); 
 
   useEffect(() => {
     loadTransactions();
-  }, [page, statusFilter, startDate, endDate, customerFilter, paymentFilter]);
+  }, [page, statusFilter, startDate, endDate, customerFilter, paymentFilter, referralFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, startDate, endDate, customerFilter, paymentFilter]);
+  }, [search, statusFilter, startDate, endDate, customerFilter, paymentFilter, referralFilter]);
 
   useEffect(() => {
     loadPaymentChannels();
     loadGlobalStats();
     loadDefaultUpdateDates();
+    loadReferrals();
   }, []);
 
   const loadTransactions = async () => {
@@ -148,6 +155,7 @@ export default function TransactionsPage() {
         end_date: endDate,
         customer_guid: customerFilter,
         payment_channel: paymentFilter,
+        referral: referralFilter,
       });
 
       const res = await fetch(`/api/transactions?${params}`, { cache: "no-store" });
@@ -156,10 +164,33 @@ export default function TransactionsPage() {
       if (!data.transactions) throw new Error(data.error || "Payload kosong");
       setTransactions(data.transactions);
       setTotalCount(data.total_count || 0);
+      setUniqueCustomerCount(data.unique_customer_count || 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReferrals = async () => {
+    try {
+      const res = await fetch('/api/referral', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) throw new Error(`Failed to load referrals: ${res.status}`);
+      const data: any = await res.json();
+      if (data.referrals) {
+        const uniqueReferrals: string[] = [...new Set((data.referrals as any[])
+          .map((r: { partner_name: string }) => r.partner_name)
+          .filter((name: any): name is string => Boolean(name)))];
+        setReferrals(uniqueReferrals);
+      }
+    } catch (error) {
+      console.error('Error loading referrals:', error);
     }
   };
 
@@ -203,7 +234,6 @@ export default function TransactionsPage() {
 
   const loadDefaultUpdateDates = async () => {
     try {
-      // Get last transaction date from database
       const res = await fetch('/api/transactions?get_last_date=true', {
         method: 'GET',
         headers: {
@@ -213,7 +243,6 @@ export default function TransactionsPage() {
 
       if (!res.ok) {
         console.error('Failed to get last transaction date');
-        // Set default values
         const today = new Date();
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 30);
@@ -229,12 +258,10 @@ export default function TransactionsPage() {
       setUpdateEndDate(today.toISOString().split('T')[0]);
 
       if (lastTransactionDate) {
-        // Set start date to one day before last transaction date
         const lastDate = new Date(lastTransactionDate);
         lastDate.setDate(lastDate.getDate() - 1);
         setUpdateStartDate(lastDate.toISOString().split('T')[0]);
       } else {
-        // If no transactions exist, set start date to 30 days ago
         const thirtyDaysAgo = new Date(today);
         thirtyDaysAgo.setDate(today.getDate() - 30);
         setUpdateStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
@@ -242,7 +269,6 @@ export default function TransactionsPage() {
 
     } catch (error) {
       console.error('Error loading default update dates:', error);
-      // Set fallback dates
       const today = new Date();
       const sevenDaysAgo = new Date(today);
       sevenDaysAgo.setDate(today.getDate() - 7);
@@ -280,11 +306,11 @@ export default function TransactionsPage() {
       })();
 
       const matchesCustomer = !customerFilter || t.customer_guid === customerFilter;
+      const matchesReferral = !referralFilter || t.referral_name?.toLowerCase() === referralFilter.toLowerCase();
 
-      return matchesSearch && matchesStatus && matchesDateRange && matchesCustomer;
+      return matchesSearch && matchesStatus && matchesDateRange && matchesCustomer && matchesReferral;
     });
 
-    // Sort by created_at (desc)
     filteredTransactions.sort((a, b) => {
       const dateA = new Date(a.created_at || '');
       const dateB = new Date(b.created_at || '');
@@ -292,7 +318,7 @@ export default function TransactionsPage() {
     });
 
     return filteredTransactions;
-  }, [transactions, search, statusFilter, startDate, endDate, customerFilter]);
+  }, [transactions, search, statusFilter, startDate, endDate, customerFilter, referralFilter]);
 
   const paginated = useMemo(
     () => transactions,
@@ -300,8 +326,7 @@ export default function TransactionsPage() {
   );
 
   const stats = useMemo(() => {
-    const total = totalCount; // Gunakan total dari database, bukan dari filtered array
-    // Hitung total revenue hanya dari transaksi finished dengan valuta IDR di seluruh data yang dimuat
+    const total = totalCount;
     const totalRevenue = transactions
       .filter((t) => t.status?.toLowerCase() === 'finished' && t.valuta_code?.toUpperCase() === 'IDR')
       .reduce((sum, t) => sum + (t.grand_total || 0), 0);
@@ -316,186 +341,118 @@ export default function TransactionsPage() {
     setSyncResults(null);
 
     try {
-      if (syncAll) {
-        // Use /api/sync-transactions for sync all (has automatic date logic)
-        console.log('Syncing all transactions using /api/sync-transactions...');
-
-        const res = await fetch("/api/sync-transactions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            // No dates provided - let the API determine automatically
-          }),
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || `HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-
-        if (data.status !== "sync_completed") {
-          throw new Error(data.error || "Sync failed");
-        }
-
-        // Update sync results
-        setSyncResults({
-          total_processed: data.total_processed || 0,
-          success_count: data.success_count || 0,
-          error_count: data.error_count || 0,
-        });
-        setSyncStatus("success");
-
-        console.log(`Sync completed: ${data.total_processed || 0} processed, ${data.success_count || 0} success, ${data.error_count || 0} errors`);
-      } else {
-        // Use /api/mwx-transactions for filtered sync
-        let totalProcessed = 0;
-        let totalSuccess = 0;
-        let totalError = 0;
-        let page = 1;
-        const limit = 100;
-
-        while (true) {
-          console.log(`Syncing page ${page}...`);
-
-          const requestBody = {
-            filter: {
-              // Use current filters for filtered sync
-              set_guid: false,
-              guid: "",
-              set_status: false,
-              status: statusFilter !== "all" && statusFilter !== "" ? statusFilter : "",
-              set_category: false,
-              category: "",
-              set_name: false,
-              name: "",
-              set_transaction_at: true,
-              start_date: (startDate && endDate) ? `${startDate}T00:00:00` : "",
-              end_date: (startDate && endDate) ? `${endDate}T23:59:59` : "",
-            },
-            limit: limit,
-            page: page,
-            order: "created_at",
-            sort: "DESC"
-          };
-
-          console.log('Sync request body:', JSON.stringify(requestBody, null, 2));
-
-          const res = await fetch("/api/mwx-transactions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestBody),
-          });
-
-          if (!res.ok) {
-            const errorData = await res.json();
-            throw new Error(errorData.message || `HTTP ${res.status}`);
-          }
-
-          const data = await res.json();
-
-          if (data.status !== "success") {
-            throw new Error(data.error || "Sync failed");
-          }
-
-          // Accumulate results
-          const pageResults = data.database_results;
-          if (pageResults) {
-            totalProcessed += pageResults.total_processed || 0;
-            totalSuccess += pageResults.success_count || 0;
-            totalError += pageResults.error_count || 0;
-          }
-
-          console.log(`Page ${page}: ${pageResults ? pageResults.total_processed || 0 : 0} processed, ${pageResults ? pageResults.success_count || 0 : 0} success, ${pageResults ? pageResults.error_count || 0 : 0} errors`);
-
-          // Check if we should continue
-          const apiData = data.api_data;
-          const transactionsReturned = apiData?.data?.length || 0;
-
-          if (transactionsReturned < limit) {
-            // Less than limit returned, this is the last page
-            break;
-          }
-
-          page++;
-        }
-
-        // Update sync results
-        setSyncResults({
-          total_processed: totalProcessed,
-          success_count: totalSuccess,
-          error_count: totalError,
-        });
-        setSyncStatus("success");
+      const body: any = {};
+      if (!syncAll) {
+        body.startDate = updateStartDate;
+        body.endDate = updateEndDate;
       }
 
-      // Reload transaction data after successful sync
+      const res = await fetch("/api/sync-transactions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (data.status !== "sync_completed") {
+        throw new Error(data.error || "Sync failed");
+      }
+
+      setSyncResults({
+        total_processed: data.total_processed || 0,
+        success_count: data.success_count || 0,
+        error_count: data.error_count || 0,
+        errors: data.errors || data.results?.filter((r: any) => r.status === "error"),
+      });
+      setSyncStatus("success");
+
       setTimeout(() => {
         window.location.reload();
       }, 2000);
-
     } catch (error) {
       setSyncStatus("error");
       console.error("Sync transactions error:", error);
     }
   };
 
+  const handleExportToXLS = async () => {
+    try {
+      const limit = '99999';
+      const params = new URLSearchParams({
+        page: '1',
+        limit,
+        search: search.trim(),
+        status: statusFilter !== "all" ? statusFilter : "",
+        start_date: startDate,
+        end_date: endDate,
+        customer_guid: customerFilter,
+        payment_channel: paymentFilter,
+        referral: referralFilter,
+      });
 
+      const res = await fetch(`/api/transactions?${params}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const data: any = await res.json();
+      if (!data.transactions) throw new Error(data.error || "Payload kosong");
 
-  const handleExportToXLS = () => {
-    // Prepare data for export - use filtered data (all results matching current filters)
-    const exportData = filtered.map((transaction) => ({
-      Invoice: transaction.invoice_number || '',
-      Customer: transaction.customer_full_name || transaction.customer_username || 'N/A',
-      Email: transaction.customer_email || '',
-      Product: transaction.transaction_details && transaction.transaction_details.length > 0
-        ? transaction.transaction_details.length === 1
-          ? transaction.transaction_details[0].product_name
-          : `${transaction.transaction_details[0].product_name} (+${transaction.transaction_details.length - 1} more items)`
-        : '-',
-      Payment: transaction.payment_channel_name || '',
-      Amount: `${transaction.valuta_code || 'USD'} ${transaction.grand_total?.toLocaleString('id-ID', { minimumFractionDigits: 2 }) || '0.00'}`,
-      Quantity: transaction.qty || 0,
-      Status: transaction.status || 'Unknown',
-      Date: formatDate(transaction.created_at),
-      Transaction_GUID: transaction.guid,
-      Customer_GUID: transaction.customer_guid,
-    }));
+      const allTransactions = data.transactions as Transaction[];
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
+      const exportData = allTransactions.map((transaction) => ({
+        Invoice: transaction.invoice_number || '',
+        Customer: transaction.customer_full_name || transaction.customer_username || 'N/A',
+        Referral: transaction.referral_name || 'N/A',
+        Email: transaction.customer_email || '',
+        Product: transaction.transaction_details && transaction.transaction_details.length > 0
+          ? transaction.transaction_details.length === 1
+            ? transaction.transaction_details[0].product_name
+            : `${transaction.transaction_details[0].product_name} (+${transaction.transaction_details.length - 1} more items)`
+          : '-',
+        Payment: transaction.payment_channel_name || '',
+        Amount: `${transaction.valuta_code || 'USD'} ${transaction.grand_total?.toLocaleString('id-ID', { minimumFractionDigits: 2 }) || '0.00'}`,
+        Quantity: transaction.qty || 0,
+        Status: transaction.status || 'Unknown',
+        Date: formatDate(transaction.created_at),
+        Transaction_GUID: transaction.guid,
+        Customer_GUID: transaction.customer_guid,
+      }));
 
-    // Set column widths
-    const colWidths = [
-      { wch: 20 }, // Invoice
-      { wch: 25 }, // Customer
-      { wch: 30 }, // Email
-      { wch: 35 }, // Product
-      { wch: 20 }, // Payment
-      { wch: 15 }, // Amount
-      { wch: 10 }, // Quantity
-      { wch: 12 }, // Status
-      { wch: 12 }, // Date
-      { wch: 40 }, // Transaction_GUID
-      { wch: 40 }, // Customer_GUID
-    ];
-    ws['!cols'] = colWidths;
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
 
-    // Add worksheet to workbook with the specified name
-    XLSX.utils.book_append_sheet(wb, ws, "MWX Transactions");
+      const colWidths = [
+        { wch: 20 }, // Invoice
+        { wch: 25 }, // Customer
+        { wch: 20 }, // Referral
+        { wch: 30 }, // Email
+        { wch: 35 }, // Product
+        { wch: 20 }, // Payment
+        { wch: 15 }, // Amount
+        { wch: 10 }, // Quantity
+        { wch: 12 }, // Status
+        { wch: 12 }, // Date
+        { wch: 40 }, // Transaction_GUID
+        { wch: 40 }, // Customer_GUID
+      ];
+      ws['!cols'] = colWidths;
 
-    // Generate filename with current date
-    const now = new Date();
-    const filename = `mwx_transactions_${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}.xlsx`;
+      XLSX.utils.book_append_sheet(wb, ws, "MWX Transactions");
 
-    // Save file
-    XLSX.writeFile(wb, filename);
+      const now = new Date();
+      const filename = `mwx_transactions_${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}.xlsx`;
+
+      XLSX.writeFile(wb, filename);
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Export failed: ' + (err instanceof Error ? err.message : 'Unknown error'));
+    }
   };
 
   return (
@@ -509,21 +466,6 @@ export default function TransactionsPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {/* Temporarily hidden - Sinkron Transactions button */}
-            {false && (
-              <button
-                onClick={() => handleSyncTransactions(false)}
-                disabled={syncStatus === "syncing"}
-                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                  syncStatus === "syncing"
-                    ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
-                    : "border-purple-600 bg-purple-600 text-white hover:bg-purple-700 hover:border-purple-700"
-                }`}
-                type="button"
-              >
-                {syncStatus === "syncing" ? "Sedang Sinkron..." : "Sinkron Transactions"}
-              </button>
-            )}
             <button
               onClick={() => handleSyncTransactions(true)}
               disabled={syncStatus === "syncing"}
@@ -537,16 +479,28 @@ export default function TransactionsPage() {
               {syncStatus === "syncing" ? "Sedang Sinkron..." : "Sinkron Semua"}
             </button>
             <button
-              onClick={handleExportToXLS}
-              disabled={filtered.length === 0}
+              onClick={() => handleSyncTransactions(false)}
+              disabled={syncStatus === "syncing" || !updateStartDate || !updateEndDate}
               className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                filtered.length === 0
+                syncStatus === "syncing" || !updateStartDate || !updateEndDate
+                  ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
+                  : "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:border-blue-700"
+              }`}
+              type="button"
+            >
+              Sinkron Tanggal ({updateStartDate} - {updateEndDate})
+            </button>
+            <button
+              onClick={handleExportToXLS}
+              disabled={totalCount === 0}
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                totalCount === 0
                   ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
                   : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700"
               }`}
               type="button"
             >
-              Export to XLS ({filtered.length} records)
+              Export to XLS ({totalCount} records)
             </button>
             <input
               value={search}
@@ -559,11 +513,9 @@ export default function TransactionsPage() {
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase text-zinc-500">Total Transaksi</p>
+            <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah User</p>
             <p className="mt-2 text-2xl font-semibold text-[#0f172a]">
-              {totalCount} </p>
-            <p>
-              {globalStats.total_transactions.toLocaleString("id-ID")} total data transaksi
+              {uniqueCustomerCount.toLocaleString("id-ID")}
             </p>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
@@ -610,28 +562,45 @@ export default function TransactionsPage() {
                 </option>
               ))}
             </select>
+            <select
+              value={referralFilter}
+              onChange={(e) => setReferralFilter(e.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+            >
+              <option value="">Referral: Semua</option>
+              {referrals.map((referral, index) => (
+                <option key={`${referral}-${index}`} value={referral}>
+                  {referral}
+                </option>
+              ))}
+            </select>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
-              placeholder="Start Date"
             />
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
-              placeholder="End Date"
             />
             <button
               onClick={() => {
                 setSearch("");
+
                 setStatusFilter("all");
                 setPaymentFilter("");
+
+                setReferralFilter("");
+
                 setStartDate("");
+
                 setEndDate("");
+
                 setCustomerFilter("");
+
                 setPage(1);
               }}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-zinc-400"
@@ -642,151 +611,53 @@ export default function TransactionsPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-blue-800 mb-2">Update Data Transactions</h3>
-            <p className="text-sm text-blue-600 mb-4">
-              Pilih range tanggal untuk mengupdate data transactions dari MWX API.
-            </p>
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm mb-8">
+          <h3 className="text-lg font-semibold mb-4 text-[#0f172a]">Update Data Transactions</h3>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <input
+              type="date"
+              value={updateStartDate}
+              onChange={(e) => setUpdateStartDate(e.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+            />
+            <span className="text-sm text-zinc-500">s/d</span>
+            <input
+              type="date"
+              value={updateEndDate}
+              onChange={(e) => setUpdateEndDate(e.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+            />
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex flex-col">
-              <label className="text-xs font-medium text-blue-700 mb-1">Start Date</label>
-              <input
-                type="date"
-                value={updateStartDate}
-                onChange={(e) => setUpdateStartDate(e.target.value)}
-                className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+          {syncStatus !== "idle" && (
+            <div className={`p-3 rounded-lg text-sm ${
+              syncStatus === "success" ? "bg-green-50 text-green-700 border border-green-200" :
+              syncStatus === "error" ? "bg-red-50 text-red-700 border border-red-200" :
+              "bg-blue-50 text-blue-700 border border-blue-200"
+            }`}>
+              {syncStatus === "syncing" && "Sedang menyinkronkan data..."}
+              {syncStatus === "success" && syncResults && (
+                <div className="space-y-2">
+                  <div>
+                    Sinkron selesai: {syncResults.success_count} berhasil, {syncResults.error_count} gagal dari {syncResults.total_processed} data.
+                  </div>
+                  {syncResults.error_count > 0 && (
+                    <div className="text-xs text-red-700">
+                      Detail error (maks 10):
+                      <ul className="list-disc list-inside space-y-0.5 mt-1">
+                        {(syncResults.errors || []).slice(0, 10).map((err, idx) => (
+                          <li key={`${err.guid}-${idx}`}>
+                            <span className="font-semibold">{err.guid || "no-guid"}</span>: {err.error || "Unknown error"}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              {syncStatus === "error" && "Sinkron gagal. Silakan coba lagi."}
             </div>
-            <div className="flex flex-col">
-              <label className="text-xs font-medium text-blue-700 mb-1">End Date</label>
-              <input
-                type="date"
-                value={updateEndDate}
-                onChange={(e) => setUpdateEndDate(e.target.value)}
-                className="rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex flex-col">
-              <label className="text-xs font-medium text-blue-700 mb-1 opacity-0">Update</label>
-              <button
-                onClick={async () => {
-                  if (!updateStartDate || !updateEndDate) {
-                    alert("Please select both start and end dates");
-                    return;
-                  }
-                  setSyncStatus("syncing");
-                  setSyncResults(null);
-
-                  try {
-                    const res = await fetch("/api/sync-transactions", {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                      },
-                      body: JSON.stringify({
-                        startDate: updateStartDate,
-                        endDate: updateEndDate,
-                      }),
-                    });
-
-                    if (!res.ok) {
-                      const errorData = await res.json();
-                      throw new Error(errorData.message || `HTTP ${res.status}`);
-                    }
-
-                    const data = await res.json();
-
-                    if (data.status !== "sync_completed") {
-                      throw new Error(data.error || "Sync failed");
-                    }
-
-                    setSyncResults({
-                      total_processed: data.total_processed || 0,
-                      success_count: data.success_count || 0,
-                      error_count: data.error_count || 0,
-                    });
-                    setSyncStatus("success");
-
-                    // Reload data after sync
-                    setTimeout(() => {
-                      window.location.reload();
-                    }, 2000);
-
-                  } catch (error) {
-                    setSyncStatus("error");
-                    console.error("Update transactions error:", error);
-                  }
-                }}
-                disabled={syncStatus === "syncing"}
-                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                  syncStatus === "syncing"
-                    ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
-                    : "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:border-blue-700"
-                }`}
-                type="button"
-              >
-                {syncStatus === "syncing" ? "Updating..." : "Update Transactions"}
-              </button>
-            </div>
-          </div>
+          )}
         </section>
-
-        {(syncStatus !== "idle" || syncResults) && (
-          <section className="rounded-xl border border-purple-200 bg-purple-50 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-purple-200 px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase text-purple-600">Status Sinkronisasi Transactions</p>
-                <h2 className="text-lg font-semibold text-purple-800">MWX Transaction Sync</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                {syncStatus === "syncing" && (
-                  <div className="flex items-center gap-2 text-purple-600">
-                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-purple-600 border-t-transparent"></div>
-                    <span className="text-sm font-medium">Sedang mengambil data dari API...</span>
-                  </div>
-                )}
-                {syncStatus === "success" && syncResults && (
-                  <div className="text-sm text-green-600 font-medium">
-                    ✓ Sinkronisasi selesai
-                  </div>
-                )}
-                {syncStatus === "error" && (
-                  <div className="text-sm text-red-600 font-medium">
-                    ✗ Sinkronisasi gagal
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {syncResults && (
-              <div className="grid gap-4 p-5 sm:grid-cols-3">
-                <div className="rounded-lg border border-purple-200 bg-white px-4 py-3">
-                  <p className="text-xs font-semibold uppercase text-purple-600">Total Diproses</p>
-                  <p className="mt-1 text-xl font-semibold text-purple-800">
-                    {syncResults.total_processed.toLocaleString("id-ID")}
-                  </p>
-                  <p className="text-xs text-purple-600">Transactions dari API</p>
-                </div>
-                <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase text-green-600">Berhasil Disimpan</p>
-                  <p className="mt-1 text-xl font-semibold text-green-700">
-                    {syncResults.success_count.toLocaleString("id-ID")}
-                  </p>
-                  <p className="text-xs text-green-600">Insert/Update berhasil</p>
-                </div>
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase text-red-600">Gagal Diproses</p>
-                  <p className="mt-1 text-xl font-semibold text-red-700">
-                    {syncResults.error_count.toLocaleString("id-ID")}
-                  </p>
-                  <p className="text-xs text-red-600">Error dalam proses</p>
-                </div>
-              </div>
-            )}
-          </section>
-        )}
 
         <section className="rounded-xl border border-zinc-200 bg-white shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-5 py-4">
@@ -795,7 +666,6 @@ export default function TransactionsPage() {
               <h2 className="text-lg font-semibold text-[#0f172a]">MWX Transactions</h2>
             </div>
             <div className="text-sm text-zinc-500">
-              
               <span className="ml-3 text-xs text-zinc-400">
                 Page {page} / {Math.ceil(totalCount / pageSize)}
               </span>
@@ -812,13 +682,14 @@ export default function TransactionsPage() {
             <div className="overflow-auto">
               <table className="min-w-full table-fixed divide-y divide-zinc-200">
                 <colgroup>
-                  <col className="w-[15%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[15%]" />
-                  <col className="w-[15%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[18%]" />
                   <col className="w-[10%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
+                  <col className="w-[12%]" />
                   <col className="w-[10%]" />
+                  <col className="w-[8%]" />
                 </colgroup>
                 <thead className="bg-[#f9fafb]">
                   <tr>
@@ -827,6 +698,9 @@ export default function TransactionsPage() {
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                       Customer
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                      Referral
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                       Product
@@ -857,6 +731,9 @@ export default function TransactionsPage() {
                           {transaction.customer_full_name || transaction.customer_username || "N/A"}
                         </div>
                         <div className="text-xs text-zinc-500">{transaction.customer_email || "-"}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-zinc-700">
+                        <div className="font-semibold">{transaction.referral_name || "N/A"}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-700">
                         {transaction.transaction_details && transaction.transaction_details.length > 0 ? (
@@ -904,8 +781,7 @@ export default function TransactionsPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="text-sm text-zinc-500">
-            Menampilkan {(page - 1) * pageSize + 1} -{" "}
-            {Math.min(page * pageSize, totalCount)} dari {totalCount} transaksi
+            Menampilkan {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, totalCount)} dari {totalCount} transaksi
           </div>
           <div className="flex items-center gap-2">
             <button

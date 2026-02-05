@@ -54,3 +54,26 @@ venv.bak/
 
 #CSV
 *.csv
+
+# backups and data files
+*.bak
+*.xlsx
+*.ps1
+
+# test and personal scripts
+test*.js
+check*.js
+
+# data files
+products.json
+transaction.json
+transactions*.json
+docs/*.json
+
+# scripts and migrations (not part of app)
+alter_referral_partners*
+cleanup.js
+enrich_usage.sql
+get_product_apps*
+
+

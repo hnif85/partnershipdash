@@ -97,10 +97,9 @@ interface TransactionFromAPI {
     transaction_id?: string;
   }>;
   transaction_id?: string;
-}>;
-transaction_details ?: Array<any>; // Fallback for plural field name
-created_at: string;
-created_by: any;
+  transaction_details?: Array<any>; // Fallback for plural field name
+  created_at: string;
+  created_by: any;
 }
 
 async function upsertTransaction(transaction: TransactionFromAPI): Promise<void> {
@@ -340,6 +339,10 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(backOfficeBody),
     });
 
+    // Track if we need to update cookies after successful refresh
+    let refreshedToken: string | null = null;
+    let refreshedMessage: string | null = null;
+
     // If 401 Unauthorized, try to refresh authentication and retry once
     if (response.status === 401) {
       console.log('Received 401, attempting to refresh authentication...');
@@ -365,13 +368,24 @@ export async function POST(request: NextRequest) {
           if (loginData.response?.code === '00') {
             console.log('Authentication refreshed successfully, retrying API call...');
 
-            // Retry the original API call
+            // Extract new token and message from refresh response
+            if (loginData.response?.data?.token) {
+              refreshedToken = loginData.response.data.token;
+              console.log('Found new token from refresh response');
+            }
+
+            if (loginData.response?.message_en) {
+              refreshedMessage = loginData.response.message_en;
+              console.log('Found new message from refresh response');
+            }
+
+            // Retry the original API call with refreshed token
             response = await fetch(url, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'token': token, // MWX API expects token as header
-                'cookie': `token=${token}; logged_in=1`,
+                'token': refreshedToken || token, // Use refreshed token or fallback to original
+                'cookie': `token=${refreshedToken || token}; logged_in=1`,
                 'origin': 'https://backoffice.mwxmarket.ai',
                 'referer': 'https://backoffice.mwxmarket.ai/dashboard/transaction/manage-transaction',
                 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -436,7 +450,7 @@ export async function POST(request: NextRequest) {
     console.log(`Database save completed: ${successCount} success, ${errorCount} errors`);
 
     // Return response with both API data and database save results
-    return NextResponse.json({
+    const successResponse = NextResponse.json({
       status: "success",
       message: `Fetched ${transactions.length} transactions, saved ${successCount} to database`,
       api_data: data.response,
@@ -447,6 +461,31 @@ export async function POST(request: NextRequest) {
         results
       }
     });
+
+    // Update cookies if we have refreshed authentication data
+    if (refreshedToken) {
+      successResponse.cookies.set('mwx_token', refreshedToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      console.log('Updated mwx_token cookie with refreshed token');
+    }
+
+    if (refreshedMessage) {
+      successResponse.cookies.set('mwx_message', refreshedMessage, {
+        httpOnly: false, // Allow client-side access
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7, // 7 days
+        path: '/',
+      });
+      console.log('Updated mwx_message cookie with latest message');
+    }
+
+    return successResponse;
   } catch (error) {
     return NextResponse.json(
       {

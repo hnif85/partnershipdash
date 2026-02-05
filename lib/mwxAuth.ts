@@ -79,12 +79,28 @@ class MWXAuth {
 
       const data: any = await response.json();
 
+      console.log('Login response full data:', JSON.stringify(data, null, 2));
+      console.log('Login response code:', data?.response?.code);
+      console.log('Login response message:', data?.response?.message_en);
+
       if (data.response.code !== '00') {
         throw new Error(`Login error: ${data.response.message_en || 'Unknown error'}`);
       }
 
-      // Update token to the session token from login
-      const sessionToken = data.response.data.token;
+      // Extract session token - check multiple possible locations
+      let sessionToken = data.response?.data?.token;
+
+      if (!sessionToken) {
+        // Try alternative paths for the token
+        sessionToken = data.response?.token || data.token || data.session_token;
+      }
+
+      if (!sessionToken) {
+        console.error('Login response data structure:', data);
+        throw new Error('Failed to get session token from login response - token not found in expected location');
+      }
+
+      console.log('Found session token, length:', sessionToken.length);
       this.token = sessionToken;
 
       // Return the full response including message_en

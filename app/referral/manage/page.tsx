@@ -8,6 +8,7 @@ interface ReferralPartner {
   code: string;
   partner: string;
   is_gov: boolean;
+  is_new: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -26,6 +27,7 @@ export default function ReferralManagePage() {
   const [formData, setFormData] = useState<NewReferral>({ code: "", partner: "", is_gov: false });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   const loadReferralPartners = async () => {
     try {
@@ -120,6 +122,36 @@ export default function ReferralManagePage() {
     }
   };
 
+  const handleScanReferrals = async () => {
+    if (!confirm("Are you sure you want to scan for new referral codes from customer data? This will add any missing referral partners to the database.")) {
+      return;
+    }
+
+    setScanning(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/referral/manage/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Scan failed');
+      }
+
+      const data = await res.json();
+      alert(`Scan completed! ${data.scanned} new referral codes added.`);
+      await loadReferralPartners();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const resetForm = () => {
     setShowForm(false);
     setEditingPartner(null);
@@ -143,6 +175,13 @@ export default function ReferralManagePage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleScanReferrals}
+              disabled={scanning}
+              className="rounded-lg border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 hover:border-blue-700 disabled:opacity-50"
+            >
+              {scanning ? 'Scanning...' : 'Scan Referrals'}
+            </button>
             <button
               onClick={() => { setShowForm(true); setEditingPartner(null); setFormData({ code: "", partner: "", is_gov: false }); }}
               className="rounded-lg border border-green-600 bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 hover:border-green-700"
@@ -251,6 +290,9 @@ export default function ReferralManagePage() {
                       Partner
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                       Type
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
@@ -269,6 +311,13 @@ export default function ReferralManagePage() {
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-700">
                         <div className="font-semibold">{partner.partner}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-zinc-700">
+                        {partner.is_new && (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                            New
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-700">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${

@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { activities } from "./activity/data";
+import { activities } from "./activityTarget/data";
 
 const navItems = [
-  { href: "/", label: "Activity Targets", tag: "Overview" },
+  { href: "/", label: "Dashboard", tag: "Overview" },
+  { href: "/activityTarget", label: "Activity Targets", tag: "Targets" },
   { href: "/weekly", label: "Weekly Overview", tag: "Funnel" },
   { href: "/customers", label: "Customers", tag: "Data" },
   { href: "/sales", label: "Sales", tag: "Finance" },
@@ -96,11 +97,11 @@ export default function Sidebar() {
             <>
               <div className="border-t border-zinc-200 pt-3">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                  Activity detail
+                  Activity Targets
                 </p>
                 <div className="flex flex-col gap-1">
                   {activities.map((activity) => {
-                    const href = `/activity/${activity.slug}`;
+                    const href = `/activityTarget/${activity.slug}`;
                     const active =
                       pathname === href || pathname?.startsWith(`${href}`);
                     return (

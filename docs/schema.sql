@@ -224,6 +224,7 @@ CREATE TABLE public.referral_partners (
   created_at timestamp with time zone,
   is_gov boolean,
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  is_new boolean DEFAULT false,
   CONSTRAINT referral_partners_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.tmp_training_data (

@@ -46,7 +46,7 @@ type Params = { slug: string };
 
 const breadcrumbs = [
   { label: "Home", href: "/" },
-  { label: "Activity Targets", href: "/" },
+  { label: "Activity Targets", href: "/activityTarget" },
 ];
 
 export default async function ActivityDetail({ params }: { params: Promise<Params> }) {
@@ -249,7 +249,7 @@ export default async function ActivityDetail({ params }: { params: Promise<Param
 
         <div className="flex flex-wrap gap-3 text-sm text-zinc-600">
           <Link
-            href="/"
+            href="/activityTarget"
             className="rounded-lg border border-zinc-200 bg-white px-4 py-2 font-semibold text-[#1f3c88] shadow-sm transition hover:border-[#1f3c88]"
           >
             Kembali ke daftar aktivitas

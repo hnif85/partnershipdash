@@ -1,90 +1,191 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
-    // Overall credit statistics
-    const creditStatsQuery = `
-      SELECT
-        COUNT(DISTINCT user_id) as users_with_transactions,
-        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as total_credits,
-        SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as total_debits,
-        AVG(CASE WHEN type = 'credit' THEN amount ELSE NULL END) as avg_credit,
-        AVG(CASE WHEN type = 'debit' THEN amount ELSE NULL END) as avg_debit,
-        COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE AND type = 'credit' THEN 1 END) as credits_today,
-        COUNT(CASE WHEN DATE(created_at) = CURRENT_DATE AND type = 'debit' THEN 1 END) as debits_today,
-        SUM(CASE WHEN DATE(created_at) = CURRENT_DATE AND type = 'credit' THEN amount ELSE 0 END) as credits_amount_today
-      FROM credit_manager_transactions
+    // 1) Jumlah user yang membeli (transaksi IDR dengan status finished)
+    const usersPurchasedQuery = `
+      SELECT COUNT(DISTINCT t.customer_guid) AS users_purchased
+      FROM transactions t
+      LEFT JOIN cms_customers c ON t.customer_guid = c.guid
+      LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+      WHERE UPPER(t.valuta_code) = 'IDR'
+        AND LOWER(t.status) = 'finished'
+        AND (dee.email IS NULL)
     `;
 
-    // Customer statistics
-    const customerStatsQuery = `
+    // 2) Statistik referral per kode
+    const referralStatsQuery = `
+      WITH customers AS (
+        SELECT guid, referal_code, subscribe_list, email
+        FROM cms_customers
+        WHERE referal_code IS NOT NULL AND referal_code <> ''
+      ),
+      filtered_customers AS (
+        SELECT c.*
+        FROM customers c
+        LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+        WHERE dee.email IS NULL
+      ),
+      transactions_idr AS (
+        SELECT DISTINCT customer_guid
+        FROM transactions
+        WHERE UPPER(valuta_code) = 'IDR' AND LOWER(status) = 'finished'
+      ),
+      expired_apps AS (
+        SELECT DISTINCT fc.guid
+        FROM filtered_customers fc,
+             LATERAL jsonb_array_elements(COALESCE(fc.subscribe_list, '[]'::jsonb)) sub,
+             LATERAL jsonb_array_elements(COALESCE(sub->'product_list', '[]'::jsonb)) prod
+        WHERE prod->>'expired_at' IS NOT NULL
+          AND (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP
+      ),
+      active_apps AS (
+        SELECT DISTINCT fc.guid
+        FROM filtered_customers fc
+        WHERE fc.subscribe_list IS NOT NULL
+          AND jsonb_array_length(fc.subscribe_list) > 0
+        EXCEPT
+        SELECT guid FROM expired_apps
+      )
       SELECT
-        COUNT(*) as total_customers,
-        COUNT(CASE WHEN created_at >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as new_last_30_days,
-        COUNT(CASE WHEN email IS NOT NULL THEN 1 END) as with_email,
-        COUNT(CASE WHEN (is_active = 't' OR is_active = 'true' OR is_active IS NOT NULL) OR
-                     (subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0) OR
-                     EXISTS (SELECT 1 FROM credit_manager_transactions cmt WHERE cmt.user_id = c.guid::uuid LIMIT 1)
-                     THEN 1 END) as active_customers,
-        COUNT(CASE WHEN subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0 THEN 1 END) as users_with_subscriptions,
-        COUNT(CASE WHEN subscribe_list IS NOT NULL AND jsonb_array_length(subscribe_list) > 0
-                   AND EXISTS (
-                     SELECT 1 FROM jsonb_array_elements(subscribe_list) AS sub,
-                                  jsonb_array_elements(sub->'product_list') AS prod
-                     WHERE (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP
-                   ) THEN 1 END) as expired_users
-      FROM cms_customers c
+        fc.referal_code,
+        rp.partner AS partner_name,
+        COUNT(*)                            AS registered_users,
+        COUNT(DISTINCT CASE WHEN ti.customer_guid IS NOT NULL THEN fc.guid END) AS buying_users,
+        COUNT(DISTINCT CASE WHEN ea.guid IS NOT NULL THEN fc.guid END)          AS expired_app_users,
+        COUNT(DISTINCT CASE WHEN aa.guid IS NOT NULL THEN fc.guid END)          AS all_active_app_users
+      FROM filtered_customers fc
+      LEFT JOIN referral_partners rp ON rp.code = fc.referal_code
+      LEFT JOIN transactions_idr ti ON ti.customer_guid = fc.guid
+      LEFT JOIN expired_apps ea ON ea.guid = fc.guid
+      LEFT JOIN active_apps aa ON aa.guid = fc.guid
+      GROUP BY fc.referal_code, rp.partner
+      ORDER BY registered_users DESC, fc.referal_code;
     `;
 
-    // Daily activity for last 7 days
-    const dailyActivityQuery = `
+    // 3) Pertumbuhan pembelian per hari (14 hari terakhir)
+    const dailyPurchasesQuery = `
+      WITH date_range AS (
+        SELECT generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, '1 day')::date AS date
+      ),
+      purchases AS (
+        SELECT
+          DATE(t.created_at) AS date,
+          COUNT(*) AS transactions,
+          COUNT(DISTINCT t.customer_guid) AS unique_buyers,
+          COALESCE(SUM(t.grand_total), 0) AS total_idr
+        FROM transactions t
+        LEFT JOIN cms_customers c ON t.customer_guid = c.guid
+        LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+        WHERE UPPER(t.valuta_code) = 'IDR'
+          AND LOWER(t.status) = 'finished'
+          AND dee.email IS NULL
+        GROUP BY DATE(t.created_at)
+      )
       SELECT
-        DATE(created_at) as date,
-        COUNT(CASE WHEN type = 'credit' THEN 1 END) as credit_transactions,
-        COUNT(CASE WHEN type = 'debit' THEN 1 END) as debit_transactions,
-        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as daily_credits,
-        SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as daily_debits
-      FROM credit_manager_transactions
-      WHERE created_at >= CURRENT_DATE - INTERVAL '7 days'
-      GROUP BY DATE(created_at)
-      ORDER BY date DESC
-      LIMIT 7
+        d.date,
+        COALESCE(p.transactions, 0) AS transactions,
+        COALESCE(p.unique_buyers, 0) AS unique_buyers,
+        COALESCE(p.total_idr, 0) AS total_idr
+      FROM date_range d
+      LEFT JOIN purchases p ON d.date = p.date
+      ORDER BY d.date;
     `;
 
-    // Top referral partners
-    const referralPartnersQuery = `
+    // 4) Penggunaan aplikasi per hari (14 hari terakhir, debit = penggunaan kredit)
+    const dailyUsageQuery = `
+      WITH date_range AS (
+        SELECT generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, '1 day')::date AS date
+      ),
+      usages AS (
+        SELECT
+          DATE(created_at) AS date,
+          COUNT(*) AS usage_events,
+          COUNT(DISTINCT user_id) AS unique_users,
+          COALESCE(SUM(amount), 0) AS total_amount
+        FROM credit_manager_transactions
+        WHERE LOWER(type) = 'debit'
+        GROUP BY DATE(created_at)
+      )
       SELECT
-        referal_code,
-        COUNT(*) as count
-      FROM cms_customers
-      WHERE referal_code IS NOT NULL AND referal_code != ''
-      GROUP BY referal_code
-      ORDER BY count DESC
-      LIMIT 5
+        d.date,
+        COALESCE(u.usage_events, 0) AS usage_events,
+        COALESCE(u.unique_users, 0) AS unique_users,
+        COALESCE(u.total_amount, 0) AS total_amount
+      FROM date_range d
+      LEFT JOIN usages u ON d.date = u.date
+      ORDER BY d.date;
     `;
 
-    const [creditStats, customerStats, dailyActivity, referralPartners] = await Promise.all([
-      pool.query(creditStatsQuery),
-      pool.query(customerStatsQuery),
-      pool.query(dailyActivityQuery),
-      pool.query(referralPartnersQuery)
+    // 5) Jumlah user dengan aplikasi akan expired < 7 hari lagi
+    const expiringSoonQuery = `
+      WITH customers AS (
+        SELECT guid, email, COALESCE(subscribe_list, '[]'::jsonb) AS subscribe_list
+        FROM cms_customers
+      ),
+      subs AS (
+        SELECT
+          c.guid,
+          c.email,
+          jsonb_array_elements(subscribe_list) AS sub
+        FROM customers c
+      ),
+      products AS (
+        SELECT
+          s.guid,
+          s.email,
+          jsonb_array_elements(COALESCE(sub->'product_list', '[]'::jsonb)) AS prod
+        FROM subs s
+      ),
+      expiring AS (
+        SELECT DISTINCT p.guid, p.email
+        FROM products p
+        WHERE p.prod->>'expired_at' IS NOT NULL
+          AND (p.prod->>'expired_at')::timestamp >= CURRENT_TIMESTAMP
+          AND (p.prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP + INTERVAL '7 days'
+      )
+      SELECT COUNT(DISTINCT e.guid) AS expiring_users
+      FROM expiring e
+      LEFT JOIN demo_excluded_emails dee ON e.email = dee.email AND dee.is_active = true
+      WHERE dee.email IS NULL;
+    `;
+
+    const [
+      usersPurchasedRes,
+      referralStatsRes,
+      dailyPurchasesRes,
+      dailyUsageRes,
+      expiringSoonRes,
+    ] = await Promise.all([
+      pool.query(usersPurchasedQuery),
+      pool.query(referralStatsQuery),
+      pool.query(dailyPurchasesQuery),
+      pool.query(dailyUsageQuery),
+      pool.query(expiringSoonQuery),
     ]);
 
+    const referralStats = referralStatsRes.rows.map((row) => ({
+      referal_code: row.referal_code ?? row.referal_code ?? row.referral_code ?? null,
+      partner_name: row.partner_name ?? null,
+      registered_users: Number(row.registered_users) || 0,
+      buying_users: Number(row.buying_users) || 0,
+      expired_app_users: Number(row.expired_app_users) || 0,
+      all_active_app_users: Number(row.all_active_app_users) || 0,
+    }));
+
     const dashboardData = {
-      creditStats: creditStats.rows[0],
-      customerStats: customerStats.rows[0],
-      dailyActivity: dailyActivity.rows,
-      referralPartners: referralPartners.rows,
-      timestamp: new Date().toISOString()
+      usersPurchasedIdrFinished: Number(usersPurchasedRes.rows[0]?.users_purchased || 0),
+      referralStats,
+      dailyPurchases: dailyPurchasesRes.rows,
+      dailyUsage: dailyUsageRes.rows,
+      expiringSoonUsers: Number(expiringSoonRes.rows[0]?.expiring_users || 0),
+      timestamp: new Date().toISOString(),
     };
 
     return NextResponse.json(dashboardData);
   } catch (error) {
-    console.error('Dashboard API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch dashboard data' },
-      { status: 500 }
-    );
+    console.error("Dashboard API error:", error);
+    return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
   }
 }

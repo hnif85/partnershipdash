@@ -51,40 +51,30 @@ interface TransactionFromAPI {
   };
 }
 
-// Sanitize function to replace high Unicode characters with ? to avoid encoding errors
+// Sanitize string fields to avoid encoding issues with non-ASCII characters
 function sanitize(value: any): any {
-  // Temporarily disable sanitization to find the problematic field
+  if (typeof value === "string") {
+    // Replace characters outside Latin1 with '?'
+    return value.replace(/[^\u0000-\u00FF]/g, "?");
+  }
   return value;
 }
 
 async function syncTransactionsFromAPI(
-  token: string,
   startDate?: string,
-    endDate?: string,
+  endDate?: string,
   customerGuid?: string,
   status?: string
-): Promise<TransactionFromAPI[]> {
-  const url = "https://api-mwxmarket.mwxmarket.ai/transaction-service/transaction/back-office/list";
+): Promise<{ transactions: TransactionFromAPI[] }> {
+  const url = "https://api-mwxmarket.mwxmarket.ai/transaction-service/transaction/external/list";
 
-  console.log("Using token from login", `Token length: ${token}`); // Log token length for verification
+  // No token or refresh needed for external API
 
-    const headers = {
-      "accept": "application/json",
-      "accept-language": "en-US,en;q=0.9",
-      "content-type": "application/json",
-      "token": token,
-      "cookie": `token=${token}; logged_in=1`,
-      "origin": "https://backoffice.mwxmarket.ai",
-      "priority": "u=1, i",
-      "referer": "https://backoffice.mwxmarket.ai/dashboard/transaction/manage-transaction",
-      "sec-ch-ua": '"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-      "sec-ch-ua-mobile": "?0",
-      "sec-ch-ua-platform": '"Windows"',
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0"
-    };
+  const apiKey = "8wHKXjrO/LtJ92zCyXHelt8gzlXKIfUDAn40/AkCf2cer7rreV4lOKdJXij42XVcCn6P4/ekaWHDkTHWEPUpHGwe";
+  const baseHeaders = {
+    "x-api-key": apiKey,
+    "Content-Type": "application/json"
+  };
 
   const allTransactions: TransactionFromAPI[] = [];
   let page = 1;
@@ -119,7 +109,11 @@ async function syncTransactionsFromAPI(
       "sort": "DESC"
     };
 
-    const response = await fetch(url, {
+    const headers = {
+      ...baseHeaders
+    };
+
+    let response = await fetch(url, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
@@ -132,14 +126,28 @@ async function syncTransactionsFromAPI(
     const responseText = await response.text();
     console.log('Raw response text length:', responseText.length);
     console.log('Raw response text (first 200 chars):', responseText.substring(0, 200));
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+    // Check if response is empty
+    if (!responseText.trim()) {
+      throw new Error(`API returned empty response (status: ${response.status})`);
+    }
+
+    // Check if response might be HTML or plain text error
+    if (!responseText.trim().startsWith('{')) {
+      console.error('API returned non-JSON response:', responseText.substring(0, 500));
+      throw new Error(`API returned non-JSON response (status: ${response.status}): ${responseText.substring(0, 200)}`);
+    }
 
     let data;
     try {
       data = JSON.parse(responseText);
     } catch (parseError) {
       console.error('JSON parse error:', parseError);
+      console.error('Full response text that failed parsing:', responseText);
       const errorMessage = parseError instanceof Error ? parseError.message : String(parseError);
-      throw new Error(`Failed to parse API response: ${errorMessage}`);
+      throw new Error(`Failed to parse API response: ${errorMessage}. Response: ${responseText.substring(0, 500)}`);
     }
 
     console.log(`Fetched page ${page}, response code:`, data.response?.code);
@@ -167,7 +175,7 @@ async function syncTransactionsFromAPI(
     page++;
   }
 
-  return allTransactions;
+  return { transactions: allTransactions };
 }
 
 async function upsertTransaction(transaction: TransactionFromAPI): Promise<void> {
@@ -211,12 +219,12 @@ async function upsertTransaction(transaction: TransactionFromAPI): Promise<void>
   const values = [
     transaction.guid,
     transaction.invoice_number,
-    transaction.customer.guid,
+    transaction.customer?.guid || null,
     transaction.transaction_callback_id,
     transaction.status,
-    transaction.payment_channel?.id,
-    transaction.payment_channel?.code,
-    transaction.payment_channel?.payment_name,
+    transaction.payment_channel?.id || null,
+    transaction.payment_channel?.code || null,
+    transaction.payment_channel?.payment_name || null,
     transaction.payment_url,
     transaction.qty,
     transaction.valuta_code,
@@ -226,8 +234,8 @@ async function upsertTransaction(transaction: TransactionFromAPI): Promise<void>
     transaction.total_discount,
     transaction.grand_total,
     transaction.created_at ? new Date(transaction.created_at) : null,
-    transaction.created_by?.guid,
-    transaction.created_by?.name,
+    transaction.created_by?.guid || null,
+    transaction.created_by?.name || null,
   ].map(sanitize);
 
   console.log('Inserting transaction:', transaction.guid);
@@ -254,12 +262,22 @@ async function upsertTransaction(transaction: TransactionFromAPI): Promise<void>
   // Insert transaction details
   if (transaction.transaction_detail && Array.isArray(transaction.transaction_detail)) {
     for (const detail of transaction.transaction_detail) {
-      await upsertTransactionDetail(detail);
+      try {
+        await upsertTransactionDetail(detail, transaction.guid);
+      } catch (detailError) {
+        // Log detail error but continue with other details to avoid failing whole transaction
+        console.error(`Failed to upsert transaction detail ${detail?.guid || "(no-guid)"} for txn ${transaction.guid}:`, detailError);
+      }
     }
   }
 }
 
-async function upsertTransactionDetail(detail: TransactionFromAPI['transaction_detail'][0]): Promise<void> {
+async function upsertTransactionDetail(detail: TransactionFromAPI['transaction_detail'][0], parentGuid: string): Promise<void> {
+  if (!detail?.guid) {
+    console.warn("Skipping transaction detail with missing guid for transaction", parentGuid);
+    return;
+  }
+
   const query = `
     INSERT INTO transaction_details (
       guid, transaction_guid, merchant_guid, merchant_store_name, product_name,
@@ -284,14 +302,14 @@ async function upsertTransactionDetail(detail: TransactionFromAPI['transaction_d
 
   const values = [
     detail.guid,
-    detail.transaction_id,
-    detail.merchant?.guid,
-    detail.merchant?.store_name,
+    detail.transaction_id || parentGuid,
+    detail.merchant?.guid || null,
+    detail.merchant?.store_name || null,
     detail.product_name,
     detail.product_price,
-    detail.purchase_type?.id,
-    detail.purchase_type?.name,
-    detail.purchase_type?.value,
+    detail.purchase_type?.id || null,
+    detail.purchase_type?.name || null,
+    detail.purchase_type?.value || null,
     detail.qty,
     detail.total_discount,
     detail.grand_total,
@@ -310,35 +328,13 @@ export async function GET(request: NextRequest) {
 
     console.log("Testing MWX transaction API connection...");
 
-    // Get fresh token using ensureAuthenticated
-    let token: string;
-    try {
-      token = await mwxAuth.ensureAuthenticated();
-      console.log('Got fresh token from ensureAuthenticated');
-    } catch (authError) {
-      console.error('Failed to get authentication token:', authError);
-      return NextResponse.json({ error: 'Authentication failed: ' + (authError instanceof Error ? authError.message : "Unknown error") }, { status: 401 });
-    }
-
     // Test fetch first page only
-    const url = "https://api-mwxmarket.mwxmarket.ai/transaction-service/transaction/back-office/list";
+    const url = "https://api-mwxmarket.mwxmarket.ai/transaction-service/transaction/external/list";
 
+    const apiKey = "8wHKXjrO/LtJ92zCyXHelt8gzlXKIfUDAn40/AkCf2cer7rreV4lOKdJXij42XVcCn6P4/ekaWHDkTHWEPUpHGwe";
     const headers = {
-      "accept": "application/json",
-      "accept-language": "en-US,en;q=0.9",
-      "content-type": "application/json",
-      "token": token,
-      "cookie": `token=${token}; logged_in=1`,
-      "origin": "https://backoffice.mwxmarket.ai",
-      "priority": "u=1, i",
-      "referer": "https://backoffice.mwxmarket.ai/dashboard/transaction/manage-transaction",
-      "sec-ch-ua": '"Microsoft Edge";v="143", "Chromium";v="143", "Not A(Brand";v="24"',
-      "sec-ch-ua-mobile": "?0",
-      "sec-ch-ua-platform": '"Windows"',
-      "sec-fetch-dest": "empty",
-      "sec-fetch-mode": "cors",
-      "sec-fetch-site": "same-origin",
-      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0"
+      "x-api-key": apiKey,
+      "Content-Type": "application/json"
     };
 
     const body = {
@@ -354,9 +350,9 @@ export async function GET(request: NextRequest) {
         "set_name": false,
         "name": "",
         "set_transaction_at": true,
-        "start_date": startDate || "2026-01-07T00:00:00",
-        "end_date": endDate || "2026-01-09T23:59:59",
-        "set_valuta": false,
+        "start_date": startDate || "2025-10-27T00:00:00",
+        "end_date": endDate || "2025-10-28T23:59:59",
+        "set_valuta": true,
         "valuta": "USD",
         "set_customer_id": !!customerGuid,
         "customer_id": customerGuid || "",
@@ -474,18 +470,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "DATABASE_URL is not configured" }, { status: 500 });
     }
 
-    // Get fresh token using ensureAuthenticated
-    let token: string;
-    try {
-      token = await mwxAuth.ensureAuthenticated();
-      console.log('Got fresh token from ensureAuthenticated');
-    } catch (authError) {
-      console.error('Failed to get authentication token:', authError);
-      return NextResponse.json({ error: 'Authentication failed: ' + (authError instanceof Error ? authError.message : "Unknown error") }, { status: 401 });
-    }
-
     console.log("Fetching transactions from MWX API...");
-    const transactions = await syncTransactionsFromAPI(token, startDate, endDate, customerGuid, status);
+    const syncResult = await syncTransactionsFromAPI(startDate, endDate, customerGuid, status);
+    const transactions = syncResult.transactions;
 
     console.log(`Fetched ${transactions.length} transactions from MWX API`);
 
@@ -495,12 +482,15 @@ export async function POST(request: NextRequest) {
 
     if (transactions.length === 0) {
       console.warn("No transactions fetched from MWX API");
-      return NextResponse.json({
+
+      const successResponse = NextResponse.json({
         status: "sync_completed",
         total_processed: 0,
         message: "No transactions to sync",
         results: []
       });
+
+      return successResponse;
     }
 
     // Check database connection
@@ -511,7 +501,7 @@ export async function POST(request: NextRequest) {
 
     // Upsert each transaction into the database
     console.log("Starting upsert process...");
-    const results = [];
+    const results: Array<{ guid: string; status: "success" | "error"; error?: string }> = [];
     let successCount = 0;
     let errorCount = 0;
 
@@ -528,6 +518,7 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown error";
         console.error(`Error upserting transaction ${transaction.guid}:`, message);
+        console.error('Error details:', error);
         results.push({ guid: transaction.guid, status: "error", error: message });
         errorCount++;
       }
@@ -535,13 +526,21 @@ export async function POST(request: NextRequest) {
 
     console.log(`Sync completed: ${successCount} success, ${errorCount} errors`);
 
-    return NextResponse.json({
+    const errorSamples = results.filter((r) => r.status === "error").slice(0, 10);
+
+    const successResponse = NextResponse.json({
       status: "sync_completed",
       total_processed: transactions.length,
       success_count: successCount,
       error_count: errorCount,
-      results
+      results,
+      errors: errorSamples,
+      message: errorCount
+        ? `Some transactions failed (${errorCount}). See 'errors' for details.`
+        : "All transactions synced successfully."
     });
+
+    return successResponse;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Transaction sync error:", error);

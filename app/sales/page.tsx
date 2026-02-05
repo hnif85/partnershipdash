@@ -122,8 +122,10 @@ export default function TransactionsPage() {
     error_count: number;
     errors?: Array<{ guid: string; error?: string }>;
   } | null>(null);
-  const [updateStartDate, setUpdateStartDate] = useState<string>("");
-  const [updateEndDate, setUpdateEndDate] = useState<string>(""); 
+  const [updateStartDate, setUpdateStartDate] = useState<string>("2026-02-03");
+  const [updateEndDate, setUpdateEndDate] = useState<string>("2026-02-05"); 
+  const [showUpdatePanel, setShowUpdatePanel] = useState(false);
+  const [lastTransactionDate, setLastTransactionDate] = useState<string | null>(null);
 
   useEffect(() => {
     loadTransactions();
@@ -135,10 +137,13 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     loadPaymentChannels();
-    loadGlobalStats();
     loadDefaultUpdateDates();
     loadReferrals();
   }, []);
+
+  useEffect(() => {
+    loadGlobalStats();
+  }, [search, statusFilter, startDate, endDate, customerFilter, paymentFilter, referralFilter]);
 
   const loadTransactions = async () => {
     setLoading(true);
@@ -215,7 +220,17 @@ export default function TransactionsPage() {
 
   const loadGlobalStats = async () => {
     try {
-      const res = await fetch('/api/transactions/stats', {
+      const params = new URLSearchParams({
+        search: search.trim(),
+        status: statusFilter !== "all" ? statusFilter : "",
+        start_date: startDate,
+        end_date: endDate,
+        customer_guid: customerFilter,
+        payment_channel: paymentFilter,
+        referral: referralFilter,
+      });
+
+      const res = await fetch(`/api/transactions/stats?${params.toString()}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -256,6 +271,7 @@ export default function TransactionsPage() {
 
       const today = new Date();
       setUpdateEndDate(today.toISOString().split('T')[0]);
+      setLastTransactionDate(lastTransactionDate || null);
 
       if (lastTransactionDate) {
         const lastDate = new Date(lastTransactionDate);
@@ -462,7 +478,9 @@ export default function TransactionsPage() {
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold text-[#0f172a]">Transactions</h1>
             <p className="text-sm text-zinc-600">
-              Data transaksi pembelian dari MWX Marketplace.
+              {lastTransactionDate
+                ? `Last data update from DB: ${formatDate(lastTransactionDate)}`
+                : "Last data update from DB: belum tersedia"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -477,18 +495,6 @@ export default function TransactionsPage() {
               type="button"
             >
               {syncStatus === "syncing" ? "Sedang Sinkron..." : "Sinkron Semua"}
-            </button>
-            <button
-              onClick={() => handleSyncTransactions(false)}
-              disabled={syncStatus === "syncing" || !updateStartDate || !updateEndDate}
-              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
-                syncStatus === "syncing" || !updateStartDate || !updateEndDate
-                  ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
-                  : "border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:border-blue-700"
-              }`}
-              type="button"
-            >
-              Sinkron Tanggal ({updateStartDate} - {updateEndDate})
             </button>
             <button
               onClick={handleExportToXLS}
@@ -511,7 +517,7 @@ export default function TransactionsPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah User</p>
             <p className="mt-2 text-2xl font-semibold text-[#0f172a]">
@@ -519,21 +525,27 @@ export default function TransactionsPage() {
             </p>
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase text-zinc-500">Total Revenue</p>
+            <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah Transaksi</p>
             <p className="mt-2 text-2xl font-semibold text-[#0f172a]">
-              {formatCurrency(globalStats.total_revenue, "IDR")}
+              {totalCount.toLocaleString("id-ID")}
             </p>
           </div>
           <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase text-green-600">Berhasil</p>
+            <p className="text-xs font-semibold uppercase text-green-600">Finished</p>
             <p className="mt-2 text-2xl font-semibold text-green-700">
               {globalStats.finished_transactions.toLocaleString("id-ID")}
             </p>
           </div>
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 shadow-sm">
-            <p className="text-xs font-semibold uppercase text-red-600">Gagal</p>
+            <p className="text-xs font-semibold uppercase text-red-600">Failed</p>
             <p className="mt-2 text-2xl font-semibold text-red-700">
               {globalStats.failed_transactions.toLocaleString("id-ID")}
+            </p>
+          </div>
+          <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+            <p className="text-xs font-semibold uppercase text-zinc-500">Total Revenue</p>
+            <p className="mt-2 text-2xl font-semibold text-[#0f172a]">
+              {formatCurrency(globalStats.total_revenue, "IDR")}
             </p>
           </div>
         </section>
@@ -611,50 +623,79 @@ export default function TransactionsPage() {
           </div>
         </section>
 
-        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm mb-8">
-          <h3 className="text-lg font-semibold mb-4 text-[#0f172a]">Update Data Transactions</h3>
-          <div className="flex flex-wrap items-center gap-3 mb-4">
-            <input
-              type="date"
-              value={updateStartDate}
-              onChange={(e) => setUpdateStartDate(e.target.value)}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
-            />
-            <span className="text-sm text-zinc-500">s/d</span>
-            <input
-              type="date"
-              value={updateEndDate}
-              onChange={(e) => setUpdateEndDate(e.target.value)}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
-            />
-          </div>
-          {syncStatus !== "idle" && (
-            <div className={`p-3 rounded-lg text-sm ${
-              syncStatus === "success" ? "bg-green-50 text-green-700 border border-green-200" :
-              syncStatus === "error" ? "bg-red-50 text-red-700 border border-red-200" :
-              "bg-blue-50 text-blue-700 border border-blue-200"
-            }`}>
-              {syncStatus === "syncing" && "Sedang menyinkronkan data..."}
-              {syncStatus === "success" && syncResults && (
-                <div className="space-y-2">
-                  <div>
-                    Sinkron selesai: {syncResults.success_count} berhasil, {syncResults.error_count} gagal dari {syncResults.total_processed} data.
-                  </div>
-                  {syncResults.error_count > 0 && (
-                    <div className="text-xs text-red-700">
-                      Detail error (maks 10):
-                      <ul className="list-disc list-inside space-y-0.5 mt-1">
-                        {(syncResults.errors || []).slice(0, 10).map((err, idx) => (
-                          <li key={`${err.guid}-${idx}`}>
-                            <span className="font-semibold">{err.guid || "no-guid"}</span>: {err.error || "Unknown error"}
-                          </li>
-                        ))}
-                      </ul>
+        <section className="rounded-xl border border-zinc-200 bg-white shadow-sm mb-8">
+          <button
+            type="button"
+            onClick={() => setShowUpdatePanel((v) => !v)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left hover:bg-[#f7f8fb] transition"
+          >
+            <div>
+              <p className="text-xs font-semibold uppercase text-[#1f3c88]">Sinkronisasi</p>
+              <h3 className="text-lg font-semibold text-[#0f172a]">Update Data Transactions</h3>
+              <p className="text-sm text-zinc-500">Rentang fokus: 03/02/2026 - 05/02/2026</p>
+            </div>
+            <span className="text-sm font-semibold text-[#1f3c88]">{showUpdatePanel ? "Sembunyikan" : "Tampilkan"}</span>
+          </button>
+
+          {showUpdatePanel && (
+            <div className="border-t border-zinc-200 px-4 py-4 space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  type="date"
+                  value={updateStartDate}
+                  onChange={(e) => setUpdateStartDate(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                />
+                <span className="text-sm text-zinc-500">s/d</span>
+                <input
+                  type="date"
+                  value={updateEndDate}
+                  onChange={(e) => setUpdateEndDate(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                />
+              </div>
+              <button
+                onClick={() => handleSyncTransactions(true)}
+                disabled={syncStatus === "syncing"}
+                className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                  syncStatus === "syncing"
+                    ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
+                    : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700"
+                }`}
+                type="button"
+              >
+                Sinkron Semua
+              </button>
+
+              {syncStatus !== "idle" && (
+                <div className={`p-3 rounded-lg text-sm ${
+                  syncStatus === "success" ? "bg-green-50 text-green-700 border border-green-200" :
+                  syncStatus === "error" ? "bg-red-50 text-red-700 border border-red-200" :
+                  "bg-blue-50 text-blue-700 border border-blue-200"
+                }`}>
+                  {syncStatus === "syncing" && "Sedang menyinkronkan data..."}
+                  {syncStatus === "success" && syncResults && (
+                    <div className="space-y-2">
+                      <div>
+                        Sinkron selesai: {syncResults.success_count} berhasil, {syncResults.error_count} gagal dari {syncResults.total_processed} data.
+                      </div>
+                      {syncResults.error_count > 0 && (
+                        <div className="text-xs text-red-700">
+                          Detail error (maks 10):
+                          <ul className="list-disc list-inside space-y-0.5 mt-1">
+                            {(syncResults.errors || []).slice(0, 10).map((err, idx) => (
+                              <li key={`${err.guid}-${idx}`}>
+                                <span className="font-semibold">{err.guid || "no-guid"}</span>: {err.error || "Unknown error"}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
+                  {syncStatus === "error" && "Sinkron gagal. Silakan coba lagi."}
                 </div>
               )}
-              {syncStatus === "error" && "Sinkron gagal. Silakan coba lagi."}
             </div>
           )}
         </section>

@@ -82,21 +82,15 @@ export default async function ActivityDetail({ params }: { params: Promise<Param
         </div>
 
         <header className="flex flex-col gap-3 border-b border-zinc-200 pb-6">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#1f3c88]">
-                Activity Target Detail
-              </p>
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#1f3c88]">
+                  Activity Target Detail
+                </p>
               <h1 className="text-3xl font-bold text-[#0f172a]">{activity.title}</h1>
               <p className="max-w-3xl text-sm text-zinc-600">{activity.description}</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link
-                href="/weekly"
-                className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-[#1f3c88] shadow-sm transition hover:border-[#1f3c88]"
-              >
-                Lihat Weekly Funnel
-              </Link>
               <Link
                 href="/customers"
                 className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-[#0f5132] shadow-sm transition hover:border-[#0f5132]"
@@ -253,12 +247,6 @@ export default async function ActivityDetail({ params }: { params: Promise<Param
             className="rounded-lg border border-zinc-200 bg-white px-4 py-2 font-semibold text-[#1f3c88] shadow-sm transition hover:border-[#1f3c88]"
           >
             Kembali ke daftar aktivitas
-          </Link>
-          <Link
-            href="/weekly"
-            className="rounded-lg border border-zinc-200 bg-white px-4 py-2 font-semibold text-[#0f5132] shadow-sm transition hover:border-[#0f5132]"
-          >
-            Lihat funnel mingguan
           </Link>
         </div>
       </div>

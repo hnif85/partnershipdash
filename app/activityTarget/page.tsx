@@ -36,12 +36,6 @@ export default function ActivityTargets() {
                 Lihat Dashboard
               </Link>
               <Link
-                href="/weekly"
-                className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-[#0f5132] shadow-sm transition hover:border-[#0f5132]"
-              >
-                Lihat Weekly Funnel
-              </Link>
-              <Link
                 href="/customers"
                 className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-[#0f5132] shadow-sm transition hover:border-[#0f5132]"
               >

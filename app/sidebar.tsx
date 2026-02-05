@@ -8,7 +8,6 @@ import { activities } from "./activityTarget/data";
 const navItems = [
   { href: "/", label: "Dashboard", tag: "Overview" },
   { href: "/activityTarget", label: "Activity Targets", tag: "Targets" },
-  { href: "/weekly", label: "Weekly Overview", tag: "Funnel" },
   { href: "/customers", label: "Customers", tag: "Data" },
   { href: "/sales", label: "Sales", tag: "Finance" },
   { href: "/referral", label: "Referral", tag: "Analytics" },

@@ -3,6 +3,69 @@ import { pool } from "@/lib/database";
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+
+    const search = searchParams.get("search") || "";
+    const status = searchParams.get("status") || "";
+    const startDate = searchParams.get("start_date") || "";
+    const endDate = searchParams.get("end_date") || "";
+    const customerGuid = searchParams.get("customer_guid") || "";
+    const paymentChannel = searchParams.get("payment_channel") || "";
+    const referral = searchParams.get("referral") || "";
+
+    const whereConditions: string[] = ["dee.email IS NULL"];
+    const params: any[] = [];
+    let paramIndex = 1;
+
+    if (search) {
+      whereConditions.push(`(
+        t.invoice_number ILIKE $${paramIndex} OR
+        c.full_name ILIKE $${paramIndex + 1} OR
+        c.email ILIKE $${paramIndex + 2} OR
+        c.username ILIKE $${paramIndex + 3}
+      )`);
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+      paramIndex += 4;
+    }
+
+    if (status) {
+      whereConditions.push(`LOWER(t.status) = LOWER($${paramIndex})`);
+      params.push(status);
+      paramIndex += 1;
+    }
+
+    if (startDate) {
+      whereConditions.push(`t.created_at >= $${paramIndex}::timestamp`);
+      params.push(startDate);
+      paramIndex += 1;
+    }
+
+    if (endDate) {
+      whereConditions.push(`t.created_at <= $${paramIndex}::timestamp`);
+      params.push(endDate);
+      paramIndex += 1;
+    }
+
+    if (customerGuid) {
+      whereConditions.push(`t.customer_guid = $${paramIndex}`);
+      params.push(customerGuid);
+      paramIndex += 1;
+    }
+
+    if (paymentChannel) {
+      whereConditions.push(`t.payment_channel_name = $${paramIndex}`);
+      params.push(paymentChannel);
+      paramIndex += 1;
+    }
+
+    if (referral) {
+      whereConditions.push(`rp.partner ILIKE $${paramIndex}`);
+      params.push(`%${referral}%`);
+      paramIndex += 1;
+    }
+
+    const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(" AND ")}` : "";
+
     const query = `
       SELECT
         COUNT(t.*) as total_transactions,
@@ -12,10 +75,11 @@ export async function GET(request: NextRequest) {
       FROM transactions t
       LEFT JOIN cms_customers c ON t.customer_guid = c.guid
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
-      WHERE dee.email IS NULL
+      LEFT JOIN referral_partners rp ON c.referal_code = rp.code
+      ${whereClause}
     `;
 
-    const result = await pool.query(query);
+    const result = await pool.query(query, params);
     const stats = result.rows[0];
 
     return NextResponse.json({

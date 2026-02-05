@@ -5,9 +5,9 @@ export async function GET(_request: NextRequest) {
   try {
     // 1) Jumlah user yang membeli (transaksi IDR dengan status finished)
     const usersPurchasedQuery = `
-      SELECT COUNT(DISTINCT t.customer_guid) AS users_purchased
+      SELECT COUNT(DISTINCT t.customer_guid::uuid) AS users_purchased
       FROM transactions t
-      LEFT JOIN cms_customers c ON t.customer_guid = c.guid
+      LEFT JOIN cms_customers c ON t.customer_guid::uuid = c.guid::uuid
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
       WHERE UPPER(t.valuta_code) = 'IDR'
         AND LOWER(t.status) = 'finished'
@@ -28,7 +28,7 @@ export async function GET(_request: NextRequest) {
         WHERE dee.email IS NULL
       ),
       transactions_idr AS (
-        SELECT DISTINCT customer_guid
+        SELECT DISTINCT customer_guid::uuid AS customer_guid
         FROM transactions
         WHERE UPPER(valuta_code) = 'IDR' AND LOWER(status) = 'finished'
       ),
@@ -57,7 +57,7 @@ export async function GET(_request: NextRequest) {
         COUNT(DISTINCT CASE WHEN aa.guid IS NOT NULL THEN fc.guid END)          AS all_active_app_users
       FROM filtered_customers fc
       LEFT JOIN referral_partners rp ON rp.code = fc.referal_code
-      LEFT JOIN transactions_idr ti ON ti.customer_guid = fc.guid
+      LEFT JOIN transactions_idr ti ON ti.customer_guid = fc.guid::uuid
       LEFT JOIN expired_apps ea ON ea.guid = fc.guid
       LEFT JOIN active_apps aa ON aa.guid = fc.guid
       GROUP BY fc.referal_code, rp.partner
@@ -72,11 +72,11 @@ export async function GET(_request: NextRequest) {
       purchases AS (
         SELECT
           DATE(t.created_at) AS date,
-          COUNT(*) AS transactions,
-          COUNT(DISTINCT t.customer_guid) AS unique_buyers,
-          COALESCE(SUM(t.grand_total), 0) AS total_idr
-        FROM transactions t
-        LEFT JOIN cms_customers c ON t.customer_guid = c.guid
+        COUNT(*) AS transactions,
+        COUNT(DISTINCT t.customer_guid::uuid) AS unique_buyers,
+        COALESCE(SUM(t.grand_total), 0) AS total_idr
+      FROM transactions t
+        LEFT JOIN cms_customers c ON t.customer_guid::uuid = c.guid::uuid
         LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
         WHERE UPPER(t.valuta_code) = 'IDR'
           AND LOWER(t.status) = 'finished'
@@ -151,18 +151,99 @@ export async function GET(_request: NextRequest) {
       WHERE dee.email IS NULL;
     `;
 
+    const totalCustomersQuery = `
+      SELECT COUNT(*)::int AS total_customers
+      FROM cms_customers c
+      LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+      WHERE dee.email IS NULL
+    `;
+
+    const expiredUsersQuery = `
+      WITH filtered_customers AS (
+        SELECT guid, subscribe_list
+        FROM cms_customers c
+        LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+        WHERE dee.email IS NULL
+      )
+      SELECT COUNT(DISTINCT fc.guid)::int AS expired_users
+      FROM filtered_customers fc
+      WHERE fc.subscribe_list IS NOT NULL 
+        AND jsonb_array_length(fc.subscribe_list) > 0
+        AND EXISTS (
+          SELECT 1 
+          FROM jsonb_array_elements(fc.subscribe_list) AS sub, 
+          jsonb_array_elements(COALESCE(sub->'product_list', '[]'::jsonb)) AS prod
+          WHERE prod->>'expired_at' IS NOT NULL
+            AND (prod->>'expired_at')::timestamp < CURRENT_TIMESTAMP
+        )
+    `;
+
+    const activeCustomersQuery = `
+      WITH filtered_customers AS (
+        SELECT guid, subscribe_list
+        FROM cms_customers c
+        LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+        WHERE dee.email IS NULL
+      )
+      SELECT COUNT(DISTINCT fc.guid)::int AS active_customers
+      FROM filtered_customers fc
+      WHERE fc.subscribe_list IS NOT NULL 
+        AND jsonb_array_length(fc.subscribe_list) > 0
+        AND EXISTS (
+          SELECT 1 
+          FROM jsonb_array_elements(fc.subscribe_list) AS sub, 
+          jsonb_array_elements(COALESCE(sub->'product_list', '[]'::jsonb)) AS prod
+          WHERE prod->>'expired_at' IS NULL OR (prod->>'expired_at')::timestamp >= CURRENT_TIMESTAMP
+        )
+    `;
+
+    const usersWithTransactionsQuery = `
+      WITH filtered_customers AS (
+        SELECT guid 
+        FROM cms_customers c
+        LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+        WHERE dee.email IS NULL
+      ),
+      has_purchase_tx AS (
+        SELECT DISTINCT t.customer_guid::uuid AS guid
+        FROM transactions t
+        INNER JOIN filtered_customers fc ON fc.guid::uuid = t.customer_guid::uuid
+        WHERE UPPER(t.valuta_code) = 'IDR' AND LOWER(t.status) = 'finished'
+      ),
+      has_any_sub AS (
+        SELECT fc.guid::uuid
+        FROM filtered_customers fc
+        INNER JOIN cms_customers c ON c.guid = fc.guid
+        WHERE c.subscribe_list IS NOT NULL AND jsonb_array_length(c.subscribe_list) > 0
+      )
+      SELECT COUNT(*)::int AS users_with_transactions 
+      FROM (
+        SELECT guid FROM has_purchase_tx
+        UNION
+        SELECT guid FROM has_any_sub
+      ) u
+    `;
+
     const [
       usersPurchasedRes,
       referralStatsRes,
       dailyPurchasesRes,
       dailyUsageRes,
       expiringSoonRes,
+      totalCustomersRes,
+      expiredUsersRes,
+      activeCustomersRes,
+      usersWithTransactionsRes
     ] = await Promise.all([
       pool.query(usersPurchasedQuery),
       pool.query(referralStatsQuery),
       pool.query(dailyPurchasesQuery),
       pool.query(dailyUsageQuery),
       pool.query(expiringSoonQuery),
+      pool.query(totalCustomersQuery),
+      pool.query(expiredUsersQuery),
+      pool.query(activeCustomersQuery),
+      pool.query(usersWithTransactionsQuery)
     ]);
 
     const referralStats = referralStatsRes.rows.map((row) => ({
@@ -180,6 +261,14 @@ export async function GET(_request: NextRequest) {
       dailyPurchases: dailyPurchasesRes.rows,
       dailyUsage: dailyUsageRes.rows,
       expiringSoonUsers: Number(expiringSoonRes.rows[0]?.expiring_users || 0),
+      creditStats: {
+        users_with_transactions: Number(usersWithTransactionsRes.rows[0]?.users_with_transactions || 0),
+      },
+      customerStats: {
+        total_customers: Number(totalCustomersRes.rows[0]?.total_customers || 0),
+        active_customers: Number(activeCustomersRes.rows[0]?.active_customers || 0),
+        expired_users: Number(expiredUsersRes.rows[0]?.expired_users || 0),
+      },
       timestamp: new Date().toISOString(),
     };
 

@@ -1,12 +1,18 @@
 import { Pool } from 'pg';
 
+const useSsl =
+  !!process.env.DATABASE_URL &&
+  /supabase\.co|pooler\.supabase|amazonaws\.com/i.test(process.env.DATABASE_URL);
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: false,
+  // Supabase (and most hosted Postgres) require TLS; allow self-signed certs in dev.
+  ssl: useSsl ? { rejectUnauthorized: false } : false,
   max: 10,
   min: 0,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  // Give hosted DB more time to accept the connection.
+  connectionTimeoutMillis: 10000,
 });
 
 pool.on('connect', (client: any) => {

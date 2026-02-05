@@ -148,15 +148,46 @@ export default function Dashboard() {
     }));
   }, [data?.dailyPurchases]);
 
-  const usageChartData: MiniBarDatum[] = useMemo(() => {
+  const purchaseOnlyChartData: MiniBarDatum[] = useMemo(() => {
+    if (purchaseChartData.length === 0) return [];
+    return purchaseChartData.map((row) => ({ label: row.label, value: row.value }));
+  }, [purchaseChartData]);
+
+  const totalTransactions = useMemo(
+    () => purchaseChartData.reduce((s, d) => s + d.value, 0),
+    [purchaseChartData]
+  );
+
+  const totalUniqueBuyers = useMemo(
+    () => purchaseChartData.reduce((s, d) => s + (d.secondary || 0), 0),
+    [purchaseChartData]
+  );
+
+  const usageCreditChartData: MiniBarDatum[] = useMemo(() => {
     if (!data?.dailyUsage) return [];
     return data.dailyUsage.map((row) => ({
       label: formatShortDate(row.date),
-      value: row.usage_events,
-      secondary: row.unique_users,
-      total: row.total_amount,
+      value: row.total_amount,
     }));
   }, [data?.dailyUsage]);
+
+  const usageUniqueUsersChartData: MiniBarDatum[] = useMemo(() => {
+    if (!data?.dailyUsage) return [];
+    return data.dailyUsage.map((row) => ({
+      label: formatShortDate(row.date),
+      value: row.unique_users,
+    }));
+  }, [data?.dailyUsage]);
+
+  const totalUsageCredits = useMemo(
+    () => usageCreditChartData.reduce((s, d) => s + d.value, 0),
+    [usageCreditChartData]
+  );
+
+  const totalUsageUniqueUsers = useMemo(
+    () => usageUniqueUsersChartData.reduce((s, d) => s + d.value, 0),
+    [usageUniqueUsersChartData]
+  );
 
   const referralRows = useMemo(() => {
     if (!data?.referralStats) return [];
@@ -253,12 +284,6 @@ export default function Dashboard() {
                 Activity Targets
               </Link>
               <Link
-                href="/weekly"
-                className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-[#0f5132] shadow-sm transition hover:border-[#0f5132]"
-              >
-                Weekly Funnel
-              </Link>
-              <Link
                 href="/sales"
                 className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-[#0f5132] shadow-sm transition hover:border-[#0f5132]"
               >
@@ -275,11 +300,11 @@ export default function Dashboard() {
             <>
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm md:col-span-2">
-                  <p className="text-xs font-semibold uppercase text-zinc-500">Users Who Purchased (IDR, Finished)</p>
+                  <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah user yang membeli Aplikasi</p>
                   <p className="mt-2 text-4xl font-bold text-[#0f172a]">
                     {formatNumber(data?.usersPurchasedIdrFinished)}
                   </p>
-                  <p className="text-sm text-zinc-600 mt-1">Distinct customers dengan transaksi IDR berstatus finished.</p>
+                  <p className="text-sm text-zinc-600 mt-1">User yang membeli aplikasi</p>
                 </div>
                 <div className="rounded-xl border border-dashed border-[#1f3c88] bg-white p-6 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-[#1f3c88]">Shortcut</p>
@@ -308,7 +333,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
                   <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
                     <div>
@@ -317,20 +342,18 @@ export default function Dashboard() {
                       <p className="text-sm text-zinc-600">14 hari terakhir, transaksi IDR berstatus finished.</p>
                     </div>
                     <div className="text-right text-sm text-zinc-500">
-                      <div>Total transaksi: {formatNumber(purchaseChartData.reduce((s, d) => s + d.value, 0))}</div>
-                      <div>Total buyer unik: {formatNumber(purchaseChartData.reduce((s, d) => s + (d.secondary || 0), 0))}</div>
+                      <div>Total transaksi: {formatNumber(totalTransactions)}</div>
+                      <div>Total buyer unik: {formatNumber(totalUniqueBuyers)}</div>
                     </div>
                   </div>
                   {purchaseChartData.length === 0 ? (
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data transaksi 14 hari terakhir.</p>
-                  ) : (
+                    ) : (
                     <MiniBarChart
-                      data={purchaseChartData}
+                      data={purchaseOnlyChartData}
                       color="#1f3c88"
-                      secondaryColor="#14b8a6"
-                      title="Transaksi vs Buyer Unik"
+                      title="Transaksi"
                       valueLabel="Transaksi"
-                      secondaryLabel="Buyer Unik"
                     />
                   )}
                 </div>
@@ -343,20 +366,40 @@ export default function Dashboard() {
                       <p className="text-sm text-zinc-600">14 hari terakhir, berdasarkan transaksi debit Credit Manager.</p>
                     </div>
                     <div className="text-right text-sm text-zinc-500">
-                      <div>Total usage: {formatNumber(usageChartData.reduce((s, d) => s + d.value, 0))}</div>
-                      <div>User unik: {formatNumber(usageChartData.reduce((s, d) => s + (d.secondary || 0), 0))}</div>
+                      <div>Total usage (credit): {formatNumber(totalUsageCredits)}</div>
                     </div>
                   </div>
-                  {usageChartData.length === 0 ? (
+                  {usageCreditChartData.length === 0 ? (
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data penggunaan 14 hari terakhir.</p>
                   ) : (
                     <MiniBarChart
-                      data={usageChartData}
+                      data={usageCreditChartData}
                       color="#0f5132"
-                      secondaryColor="#f97316"
-                      title="Usage vs User Unik"
-                      valueLabel="Usage"
-                      secondaryLabel="User Unik"
+                      title="Usage (Credit)"
+                      valueLabel="Total Credit"
+                    />
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between border-b border-zinc-200 pb-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[#d97706]">User Unik</p>
+                      <h2 className="text-lg font-semibold text-[#0f172a]">Pengguna Unik per Hari</h2>
+                      <p className="text-sm text-zinc-600">14 hari terakhir, jumlah user unik yang memakai aplikasi.</p>
+                    </div>
+                    <div className="text-right text-sm text-zinc-500">
+                      <div>User unik: {formatNumber(totalUsageUniqueUsers)}</div>
+                    </div>
+                  </div>
+                  {usageUniqueUsersChartData.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-zinc-500">Belum ada data user unik 14 hari terakhir.</p>
+                  ) : (
+                    <MiniBarChart
+                      data={usageUniqueUsersChartData}
+                      color="#f97316"
+                      title="User Unik"
+                      valueLabel="User Unik"
                     />
                   )}
                 </div>

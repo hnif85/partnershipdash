@@ -27,10 +27,10 @@ export const activities: Activity[] = [
   },
   {
     slug: "impact-plus-program-inti",
-    title: "Impact Plus (Program Inti)",
+    title: "Impact Plus",
     description: "Program CSR/kemitraan untuk adopsi teknologi UMKM skala besar.",
     meta: "5 perusahaan x 12.000 trx",
-    target: 60000,
+    target: 50000,
     achieved: 15000,
     highlight: true,
   },
@@ -39,7 +39,7 @@ export const activities: Activity[] = [
     title: "Digital Activation",
     description: "Pembelian langsung dan reaktivasi via kanal digital.",
     meta: "1.000 pembelian x 1 trx",
-    target: 1000,
+    target: 20000,
     achieved: 200,
   },
   {
@@ -47,7 +47,7 @@ export const activities: Activity[] = [
     title: "Gov & Non-Gov Offline Activation",
     description: "Aktivasi berbasis institusi dan komunitas.",
     meta: "10 event x 100 UMKM x 1 trx",
-    target: 1000,
+    target: 9000,
     achieved: 300,
   },
   {

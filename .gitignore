@@ -77,3 +77,5 @@ enrich_usage.sql
 get_product_apps*
 
 
+check_counts.ts
+check_counts.ts

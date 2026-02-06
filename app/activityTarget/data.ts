@@ -24,7 +24,7 @@ export const activities: Activity[] = [
     description: "Value education & onboarding produk.",
     meta: "8 webinar x 40 peserta x 2 trx",
     target: 1000,
-    achieved: 3,
+    achieved: 23,
   },
   {
     slug: "impact-plus-program-inti",

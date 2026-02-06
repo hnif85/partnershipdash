@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const endDate = searchParams.get("end_date") || "";
     const customerGuid = searchParams.get("customer_guid") || "";
     const paymentChannel = searchParams.get("payment_channel") || "";
+    const currency = searchParams.get("currency") || "IDR";
     const referral = searchParams.get("referral") || "";
 
     const whereConditions: string[] = ["dee.email IS NULL"];
@@ -58,6 +59,12 @@ export async function GET(request: NextRequest) {
       paramIndex += 1;
     }
 
+    if (currency) {
+      whereConditions.push(`UPPER(t.valuta_code) = UPPER($${paramIndex})`);
+      params.push(currency);
+      paramIndex += 1;
+    }
+
     if (referral) {
       whereConditions.push(`rp.partner ILIKE $${paramIndex}`);
       params.push(`%${referral}%`);
@@ -71,7 +78,7 @@ export async function GET(request: NextRequest) {
         COUNT(t.*) as total_transactions,
         COUNT(CASE WHEN LOWER(t.status) = 'finished' THEN 1 END) as finished_transactions,
         COUNT(CASE WHEN LOWER(t.status) = 'failed' THEN 1 END) as failed_transactions,
-        COALESCE(SUM(CASE WHEN LOWER(t.status) = 'finished' AND UPPER(t.valuta_code) = 'IDR' THEN t.grand_total ELSE 0 END), 0) as total_revenue_idr
+        COALESCE(SUM(CASE WHEN LOWER(t.status) = 'finished' THEN t.grand_total ELSE 0 END), 0) as total_revenue
       FROM transactions t
       LEFT JOIN cms_customers c ON t.customer_guid = c.guid
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
@@ -86,7 +93,7 @@ export async function GET(request: NextRequest) {
       total_transactions: parseInt(stats.total_transactions),
       finished_transactions: parseInt(stats.finished_transactions),
       failed_transactions: parseInt(stats.failed_transactions),
-      total_revenue: parseFloat(stats.total_revenue_idr)
+      total_revenue: parseFloat(stats.total_revenue)
     });
 
   } catch (error) {

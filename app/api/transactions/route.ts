@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('end_date') || '';
     const customerGuid = searchParams.get('customer_guid') || '';
     const paymentChannel = searchParams.get('payment_channel') || '';
+    const currency = searchParams.get('currency') || '';
     const referral = searchParams.get('referral') || '';
 
     const offset = (page - 1) * limit;
@@ -77,6 +78,12 @@ export async function GET(request: Request) {
     if (paymentChannel) {
       whereConditions.push(`t.payment_channel_name = $${paramIndex}`);
       params.push(paymentChannel);
+      paramIndex += 1;
+    }
+
+    if (currency) {
+      whereConditions.push(`UPPER(t.valuta_code) = UPPER($${paramIndex})`);
+      params.push(currency);
       paramIndex += 1;
     }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 
@@ -97,14 +96,16 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const defaultStatus = "finished";
+  const defaultCurrency = "IDR";
+
+  const [statusFilter, setStatusFilter] = useState<string>(defaultStatus);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [customerFilter, setCustomerFilter] = useState<string>("");
-  const [paymentFilter, setPaymentFilter] = useState<string>("");
+  const [currencyFilter, setCurrencyFilter] = useState<string>(defaultCurrency);
   const [referralFilter, setReferralFilter] = useState<string>("");
   const [referrals, setReferrals] = useState<string[]>([]);
-  const [paymentChannels, setPaymentChannels] = useState<Array<{name: string, code: string}>>([]);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [uniqueCustomerCount, setUniqueCustomerCount] = useState(0);
@@ -129,21 +130,20 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     loadTransactions();
-  }, [page, statusFilter, startDate, endDate, customerFilter, paymentFilter, referralFilter]);
+  }, [page, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, startDate, endDate, customerFilter, paymentFilter, referralFilter]);
+  }, [search, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter]);
 
   useEffect(() => {
-    loadPaymentChannels();
     loadDefaultUpdateDates();
     loadReferrals();
   }, []);
 
   useEffect(() => {
     loadGlobalStats();
-  }, [search, statusFilter, startDate, endDate, customerFilter, paymentFilter, referralFilter]);
+  }, [search, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter]);
 
   const loadTransactions = async () => {
     setLoading(true);
@@ -159,7 +159,7 @@ export default function TransactionsPage() {
         start_date: startDate,
         end_date: endDate,
         customer_guid: customerFilter,
-        payment_channel: paymentFilter,
+        currency: currencyFilter,
         referral: referralFilter,
       });
 
@@ -199,25 +199,6 @@ export default function TransactionsPage() {
     }
   };
 
-  const loadPaymentChannels = async () => {
-    try {
-      const res = await fetch('/api/transactions/payment-channels', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!res.ok) throw new Error(`Failed to load payment channels: ${res.status}`);
-      const data = await res.json();
-      if (data.payment_channels) {
-        setPaymentChannels(data.payment_channels);
-      }
-    } catch (error) {
-      console.error('Error loading payment channels:', error);
-    }
-  };
-
   const loadGlobalStats = async () => {
     try {
       const params = new URLSearchParams({
@@ -226,7 +207,7 @@ export default function TransactionsPage() {
         start_date: startDate,
         end_date: endDate,
         customer_guid: customerFilter,
-        payment_channel: paymentFilter,
+        currency: currencyFilter,
         referral: referralFilter,
       });
 
@@ -304,6 +285,7 @@ export default function TransactionsPage() {
         t.customer_username?.toLowerCase().includes(term);
 
       const matchesStatus = statusFilter === "all" || t.status?.toLowerCase() === statusFilter.toLowerCase();
+      const matchesCurrency = !currencyFilter || t.valuta_code?.toUpperCase() === currencyFilter.toUpperCase();
 
       const matchesDateRange = (() => {
         if (!startDate && !endDate) return true;
@@ -324,7 +306,7 @@ export default function TransactionsPage() {
       const matchesCustomer = !customerFilter || t.customer_guid === customerFilter;
       const matchesReferral = !referralFilter || t.referral_name?.toLowerCase() === referralFilter.toLowerCase();
 
-      return matchesSearch && matchesStatus && matchesDateRange && matchesCustomer && matchesReferral;
+      return matchesSearch && matchesStatus && matchesDateRange && matchesCustomer && matchesReferral && matchesCurrency;
     });
 
     filteredTransactions.sort((a, b) => {
@@ -334,23 +316,46 @@ export default function TransactionsPage() {
     });
 
     return filteredTransactions;
-  }, [transactions, search, statusFilter, startDate, endDate, customerFilter, referralFilter]);
+  }, [transactions, search, statusFilter, startDate, endDate, customerFilter, referralFilter, currencyFilter]);
 
   const paginated = useMemo(
     () => transactions,
     [transactions],
   );
 
+  const currencyOptions = useMemo(() => {
+    const codes = new Set<string>();
+    transactions.forEach((t) => {
+      if (t.valuta_code) {
+        codes.add(t.valuta_code.toUpperCase());
+      }
+    });
+
+    const list = Array.from(codes);
+    if (!list.includes(defaultCurrency)) list.unshift(defaultCurrency);
+    return list;
+  }, [transactions]);
+
+  const getCurrencyLabel = (code: string) => {
+    const normalized = code?.toUpperCase();
+    if (normalized === "IDR") return "Rp (Rupiah)";
+    if (normalized === "USD") return "$ (USD)";
+    return normalized || "Currency";
+  };
+
   const stats = useMemo(() => {
     const total = totalCount;
     const totalRevenue = transactions
-      .filter((t) => t.status?.toLowerCase() === 'finished' && t.valuta_code?.toUpperCase() === 'IDR')
+      .filter((t) =>
+        t.status?.toLowerCase() === 'finished' &&
+        (!currencyFilter || t.valuta_code?.toUpperCase() === currencyFilter.toUpperCase())
+      )
       .reduce((sum, t) => sum + (t.grand_total || 0), 0);
     const finishedTransactions = transactions.filter((t) => t.status?.toLowerCase() === 'finished').length;
     const failedTransactions = transactions.filter((t) => t.status?.toLowerCase() === 'failed').length;
 
     return { total, totalRevenue, finishedTransactions, failedTransactions };
-  }, [transactions, totalCount]);
+  }, [transactions, totalCount, currencyFilter]);
 
   const handleSyncTransactions = async (syncAll: boolean = false) => {
     setSyncStatus("syncing");
@@ -410,7 +415,7 @@ export default function TransactionsPage() {
         start_date: startDate,
         end_date: endDate,
         customer_guid: customerFilter,
-        payment_channel: paymentFilter,
+        currency: currencyFilter,
         referral: referralFilter,
       });
 
@@ -545,7 +550,7 @@ export default function TransactionsPage() {
           <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-xs font-semibold uppercase text-zinc-500">Total Revenue</p>
             <p className="mt-2 text-2xl font-semibold text-[#0f172a]">
-              {formatCurrency(globalStats.total_revenue, "IDR")}
+              {formatCurrency(globalStats.total_revenue, currencyFilter || "IDR")}
             </p>
           </div>
         </section>
@@ -563,14 +568,13 @@ export default function TransactionsPage() {
               <option value="pending">Pending</option>
             </select>
             <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
+              value={currencyFilter}
+              onChange={(e) => setCurrencyFilter(e.target.value)}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
             >
-              <option value="">Payment: Semua</option>
-              {paymentChannels.map((channel, index) => (
-                <option key={`${channel.code}-${channel.name}-${index}`} value={channel.name}>
-                  {channel.name}
+              {currencyOptions.map((code) => (
+                <option key={code} value={code}>
+                  {getCurrencyLabel(code)}
                 </option>
               ))}
             </select>
@@ -590,20 +594,22 @@ export default function TransactionsPage() {
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
+              placeholder="dd/mm/yyyy"
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
             />
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
+              placeholder="dd/mm/yyyy"
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
             />
             <button
               onClick={() => {
                 setSearch("");
 
-                setStatusFilter("all");
-                setPaymentFilter("");
+                setStatusFilter(defaultStatus);
+                setCurrencyFilter(defaultCurrency);
 
                 setReferralFilter("");
 

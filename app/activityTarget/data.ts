@@ -8,22 +8,23 @@ export type Activity = {
   highlight?: boolean;
 };
 
+// Targets dipertahankan; hanya pencapaian di-update sesuai data terbaru pengguna.
 export const activities: Activity[] = [
   {
     slug: "mwx-academy",
     title: "MWX Academy",
     description: "Edukasi berkelanjutan untuk aktivasi dan monetisasi awal.",
     meta: "20 kelas x 50 peserta x 1 trx",
-    target: 1000,
-    achieved: 420,
+    target: 5000,
+    achieved: 0,
   },
   {
     slug: "webinar-berbayar",
     title: "Webinar Berbayar",
     description: "Value education & onboarding produk.",
     meta: "8 webinar x 40 peserta x 2 trx",
-    target: 640,
-    achieved: 380,
+    target: 1000,
+    achieved: 3,
   },
   {
     slug: "impact-plus-program-inti",
@@ -31,7 +32,7 @@ export const activities: Activity[] = [
     description: "Program CSR/kemitraan untuk adopsi teknologi UMKM skala besar.",
     meta: "5 perusahaan x 12.000 trx",
     target: 50000,
-    achieved: 15000,
+    achieved: 0,
     highlight: true,
   },
   {
@@ -40,23 +41,23 @@ export const activities: Activity[] = [
     description: "Pembelian langsung dan reaktivasi via kanal digital.",
     meta: "1.000 pembelian x 1 trx",
     target: 20000,
-    achieved: 200,
+    achieved: 13,
   },
   {
     slug: "gov-non-gov-offline-activation",
     title: "Gov & Non-Gov Offline Activation",
     description: "Aktivasi berbasis institusi dan komunitas.",
     meta: "10 event x 100 UMKM x 1 trx",
-    target: 9000,
-    achieved: 300,
+    target: 13000,
+    achieved: 28,
   },
   {
     slug: "on-ground-activation",
     title: "On Ground Activation",
     description: "Aktivasi hands-on berbasis kota.",
     meta: "4 kota x 500 UMKM x 5 trx",
-    target: 10000,
-    achieved: 4200,
+    target: 11000,
+    achieved: 18,
   },
 ];
 

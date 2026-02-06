@@ -98,16 +98,16 @@ export default function ActivityTargets() {
 
                 <div className="mt-6 flex items-end justify-between">
                   <div className="space-y-1 text-right">
+                    <p className="text-sm font-semibold text-[#0f5132]">Pencapaian</p>
                     <p className="text-3xl font-bold text-[#0f172a] leading-none">
-                      {formatNumber(activity.target)}
+                      {formatNumber(activity.achieved)} trx{" "}
+                      <span className="text-sm font-semibold text-zinc-500">({progress}%)</span>
                     </p>
-                    <p className="text-xs font-semibold uppercase text-zinc-500 tracking-wide">trx target</p>
                   </div>
                   <div className="space-y-1 text-right">
-                    <p className="text-sm font-semibold text-[#0f5132]">Pencapaian</p>
-                    <p className="text-base font-semibold text-[#0f172a]">
-                      {formatNumber(activity.achieved)} trx{" "}
-                      <span className="text-xs font-medium text-zinc-500">({progress}%)</span>
+                    <p className="text-xs font-semibold uppercase text-zinc-500 tracking-wide">trx target</p>
+                    <p className="text-lg font-semibold text-[#0f172a] leading-none">
+                      {formatNumber(activity.target)}
                     </p>
                   </div>
                 </div>
@@ -137,3 +137,7 @@ export default function ActivityTargets() {
     </main>
   );
 }
+
+
+
+

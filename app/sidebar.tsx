@@ -11,6 +11,7 @@ const navItems = [
   { href: "/customers", label: "Customers", tag: "Data" },
   { href: "/sales", label: "Sales", tag: "Finance" },
   { href: "/referral", label: "Referral", tag: "Analytics" },
+  { href: "/events", label: "Events", tag: "Events" },
   { href: "/setting/excludeMail", label: "Excluded Emails", tag: "Settings" },
 ];
 

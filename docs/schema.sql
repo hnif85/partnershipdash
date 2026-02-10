@@ -93,6 +93,21 @@ CREATE TABLE public.demo_excluded_emails (
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   CONSTRAINT demo_excluded_emails_pkey PRIMARY KEY (email)
 );
+CREATE TABLE public.event_registrations (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  event_id uuid NOT NULL,
+  full_name text NOT NULL,
+  phone_number text NOT NULL,
+  email text NOT NULL,
+  business_name text,
+  status text DEFAULT 'registered'::text CHECK (status = ANY (ARRAY['registered'::text, 'confirmed'::text, 'cancelled'::text, 'attended'::text])),
+  registered_at timestamp with time zone DEFAULT now(),
+  confirmed_at timestamp with time zone,
+  notes text,
+  CONSTRAINT event_registrations_pkey PRIMARY KEY (id),
+  CONSTRAINT event_registrations_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.training_events(id),
+  CONSTRAINT fk_event_registration_event FOREIGN KEY (event_id) REFERENCES public.training_events(id)
+);
 CREATE TABLE public.impact_periods (
   is_open boolean,
   created_at timestamp with time zone,
@@ -279,6 +294,14 @@ CREATE TABLE public.training_events (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   name text,
   event_date date,
+  location text,
+  event_type text CHECK (event_type = ANY (ARRAY['online'::text, 'offline'::text])),
+  description text,
+  max_participants integer,
+  registration_deadline date,
+  is_active boolean DEFAULT true,
+  created_by text,
+  updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT training_events_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.transaction_details (

@@ -79,3 +79,8 @@ get_product_apps*
 
 check_counts.ts
 check_counts.ts
+*.sql
+
+migrations/*.ts
+docs/schema.sql
+plans/event_management_spec.md

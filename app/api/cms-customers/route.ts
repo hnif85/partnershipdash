@@ -13,11 +13,12 @@ export async function GET(request: NextRequest) {
     const referralPartnerFilter = searchParams.get('referral_partner') || 'all';
     const appFilter = searchParams.get('appFilter') || 'all';
     const statusFilter = searchParams.get('statusFilter') || 'all';
+    const churnFilter = searchParams.get('churnFilter') || 'all';
 
     const [customers, referralPartners, totalCount] = await Promise.all([
-      getCmsCustomers(page, limit, search, referralPartnerFilter, appFilter, statusFilter),
+      getCmsCustomers(page, limit, search, referralPartnerFilter, appFilter, statusFilter, churnFilter),
       getReferralPartners(),
-      getCmsCustomersCount(search, referralPartnerFilter, appFilter, statusFilter),
+      getCmsCustomersCount(search, referralPartnerFilter, appFilter, statusFilter, churnFilter),
     ]);
 
     const totalPages = Math.ceil(totalCount / limit);

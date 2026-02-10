@@ -37,6 +37,8 @@ type CmsCustomerRow = {
   subscribe_list?: unknown;
   credit_added?: number;
   credit_used?: number;
+  last_debit_at?: string | null;
+  churn_status?: string | null;
   applications?: string[];
   app_credits?: Array<{
     product_name: string;
@@ -84,6 +86,8 @@ const mapCustomer = (c: CmsCustomerRow): CmsCustomer => ({
   applications: c.applications || [],
   app_credits: c.app_credits || [],
   training_data: c.training_data || [],
+  churn_status: c.churn_status || null,
+  last_debit_at: c.last_debit_at || null,
 });
 
 async function addMailinatorToExcluded(emails: string[]) {
@@ -103,7 +107,8 @@ export async function getCmsCustomers(
   search: string = '',
   referralPartnerFilter: string = 'all',
   appFilter: string = 'all',
-  statusFilter: string = 'all'
+  statusFilter: string = 'all',
+  churnFilter: string = 'all'
 ): Promise<CmsCustomer[]> {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not configured");
@@ -159,6 +164,49 @@ export async function getCmsCustomers(
     paramIndex += 1;
   }
 
+  // Handle churnFilter based on last debit usage
+  if (churnFilter === 'aktif') {
+    whereConditions.push(`EXISTS (
+      SELECT 1
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+        AND cmt_debit.created_at >= NOW() - INTERVAL '7 days'
+    )`);
+  } else if (churnFilter === 'idle') {
+    whereConditions.push(`EXISTS (
+      SELECT 1
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+    ) AND (
+      SELECT MAX(cmt_debit.created_at)
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+    ) < NOW() - INTERVAL '7 days' AND (
+      SELECT MAX(cmt_debit.created_at)
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+    ) >= NOW() - INTERVAL '30 days'`);
+  } else if (churnFilter === 'pasif') {
+    whereConditions.push(`(
+      NOT EXISTS (
+        SELECT 1
+        FROM credit_manager_transactions cmt_debit
+        WHERE cmt_debit.user_id = c.guid::uuid
+          AND LOWER(cmt_debit.type) = 'debit'
+      )
+      OR (
+        SELECT MAX(cmt_debit.created_at)
+        FROM credit_manager_transactions cmt_debit
+        WHERE cmt_debit.user_id = c.guid::uuid
+          AND LOWER(cmt_debit.type) = 'debit'
+      ) < NOW() - INTERVAL '30 days'
+    )`);
+  }
+
   const whereClauseBase = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
   const demoFilter = whereConditions.length > 0 ? ' AND dee.email IS NULL' : ' WHERE dee.email IS NULL';
 
@@ -200,6 +248,13 @@ export async function getCmsCustomers(
            c.subscribe_list,
            COALESCE(credit_totals.credit_added, 0) AS credit_added,
            COALESCE(credit_totals.credit_used, 0) AS credit_used,
+           debit_stats.last_debit_at,
+           CASE
+             WHEN debit_stats.last_debit_at IS NULL THEN 'pasif'
+             WHEN debit_stats.last_debit_at < NOW() - INTERVAL '30 days' THEN 'pasif'
+             WHEN debit_stats.last_debit_at < NOW() - INTERVAL '7 days' THEN 'idle'
+             ELSE 'aktif'
+           END AS churn_status,
            COALESCE(app_totals.applications, ARRAY[]::text[]) AS applications,
            NULL AS app_credits,
            NULL AS training_data
@@ -212,6 +267,13 @@ export async function getCmsCustomers(
       FROM credit_manager_transactions cmt
       GROUP BY cmt.user_id
     ) credit_totals ON credit_totals.user_id = c.guid::uuid
+    LEFT JOIN (
+      SELECT
+        cmt.user_id,
+        MAX(cmt.created_at) FILTER (WHERE LOWER(cmt.type) = 'debit') AS last_debit_at
+      FROM credit_manager_transactions cmt
+      GROUP BY cmt.user_id
+    ) debit_stats ON debit_stats.user_id = c.guid::uuid
     LEFT JOIN (
       SELECT
         cmt.user_id,
@@ -241,7 +303,7 @@ export async function getCmsCustomers(
   return result.rows.map(mapCustomer);
 }
 
-export async function getCmsCustomersCount(search: string = '', referralPartnerFilter: string = 'all', appFilter: string = 'all', statusFilter: string = 'all'): Promise<number> {
+export async function getCmsCustomersCount(search: string = '', referralPartnerFilter: string = 'all', appFilter: string = 'all', statusFilter: string = 'all', churnFilter: string = 'all'): Promise<number> {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not configured");
   }
@@ -292,6 +354,49 @@ export async function getCmsCustomersCount(search: string = '', referralPartnerF
     whereConditions.push(`c.subscribe_list IS NOT NULL AND jsonb_array_length(c.subscribe_list) > 0 AND EXISTS (SELECT 1 FROM jsonb_array_elements(c.subscribe_list) AS sub, jsonb_array_elements(sub->'product_list') AS prod WHERE prod->>'product_name' = $${paramIndex})`);
     params.push(appFilter);
     paramIndex += 1;
+  }
+
+  // Handle churnFilter
+  if (churnFilter === 'aktif') {
+    whereConditions.push(`EXISTS (
+      SELECT 1
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+        AND cmt_debit.created_at >= NOW() - INTERVAL '7 days'
+    )`);
+  } else if (churnFilter === 'idle') {
+    whereConditions.push(`EXISTS (
+      SELECT 1
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+    ) AND (
+      SELECT MAX(cmt_debit.created_at)
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+    ) < NOW() - INTERVAL '7 days' AND (
+      SELECT MAX(cmt_debit.created_at)
+      FROM credit_manager_transactions cmt_debit
+      WHERE cmt_debit.user_id = c.guid::uuid
+        AND LOWER(cmt_debit.type) = 'debit'
+    ) >= NOW() - INTERVAL '30 days'`);
+  } else if (churnFilter === 'pasif') {
+    whereConditions.push(`(
+      NOT EXISTS (
+        SELECT 1
+        FROM credit_manager_transactions cmt_debit
+        WHERE cmt_debit.user_id = c.guid::uuid
+          AND LOWER(cmt_debit.type) = 'debit'
+      )
+      OR (
+        SELECT MAX(cmt_debit.created_at)
+        FROM credit_manager_transactions cmt_debit
+        WHERE cmt_debit.user_id = c.guid::uuid
+          AND LOWER(cmt_debit.type) = 'debit'
+      ) < NOW() - INTERVAL '30 days'
+    )`);
   }
 
   const whereClauseBase = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';

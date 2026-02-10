@@ -20,6 +20,8 @@ type Customer = {
   updated_at?: string;
   credit_added?: number;
   credit_used?: number;
+  last_debit_at?: string | null;
+  churn_status?: "pasif" | "idle" | "aktif" | string;
   applications?: string[] | null;
   app_credits?: Array<{
     product_name: string;
@@ -98,6 +100,31 @@ const formatDate = (value?: string | null) => {
   return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
 };
 
+const renderChurnBadge = (status?: string | null) => {
+  const normalized = (status || "").toLowerCase();
+  const variants: Record<string, { label: string; className: string }> = {
+    aktif: {
+      label: "Aktif (≤7 hari)",
+      className: "bg-emerald-100 text-emerald-800 border border-emerald-200",
+    },
+    idle: {
+      label: "Idle (7-30 hari)",
+      className: "bg-amber-100 text-amber-800 border border-amber-200",
+    },
+    pasif: {
+      label: "Pasif (>30 hari)",
+      className: "bg-red-100 text-red-800 border border-red-200",
+    },
+  };
+
+  const variant = variants[normalized] || variants.pasif;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${variant.className}`}>
+      {variant.label}
+    </span>
+  );
+};
+
 export default function CustomersPage() {
   const searchParams = useSearchParams();
   const initialStatus = searchParams.get("statusFilter") || "all";
@@ -115,6 +142,8 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [appFilter, setAppFilter] = useState<string>("all");
   const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
+  const initialChurn = searchParams.get("churnFilter") || "all";
+  const [churnFilter, setChurnFilter] = useState<string>(initialChurn);
   const [applications, setApplications] = useState<string[]>([]);
 
 
@@ -178,6 +207,15 @@ export default function CustomersPage() {
     }
   }, [searchParams, statusFilter]);
 
+  // Apply churnFilter from query string
+  useEffect(() => {
+    const param = searchParams.get("churnFilter");
+    if (param && param !== churnFilter) {
+      setChurnFilter(param);
+      setPage(1);
+    }
+  }, [searchParams, churnFilter]);
+
   // Fetch applications list
   useEffect(() => {
     const fetchApplications = async () => {
@@ -209,6 +247,7 @@ export default function CustomersPage() {
           statusFilter: statusFilter,
           appFilter: appFilter,
           referral_partner: referralPartnerFilter,
+          churnFilter: churnFilter,
         });
 
         const apiUrl = `/api/cms-customers?${params}`;
@@ -245,7 +284,7 @@ export default function CustomersPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, appFilter, referralPartnerFilter]);
+  }, [search, statusFilter, appFilter, referralPartnerFilter, churnFilter]);
 
   // Sync search input with search state
   useEffect(() => {
@@ -657,6 +696,16 @@ export default function CustomersPage() {
                       </option>
                     ))}
                   </select>
+                  <select
+                    value={churnFilter}
+                    onChange={(e) => setChurnFilter(e.target.value)}
+                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                  >
+                    <option value="all">Churn: Semua</option>
+                    <option value="aktif">Aktif (≤7 hari)</option>
+                    <option value="idle">Idle (7-30 hari)</option>
+                    <option value="pasif">Pasif (&gt;30 hari)</option>
+                  </select>
                   <span className="text-sm text-zinc-500">
                     Total: {(totalCount || 0).toLocaleString("id-ID")}
                   </span>
@@ -688,6 +737,9 @@ export default function CustomersPage() {
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                           Kredit
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                          Activity status
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                           Partner
@@ -773,6 +825,14 @@ export default function CustomersPage() {
                               <div className="text-xs text-zinc-500">
                                 -{(customer.credit_used ?? 0).toLocaleString("id-ID")}
                               </div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-zinc-700">
+                              {renderChurnBadge(customer.churn_status)}
+                              {customer.last_debit_at && (
+                                <div className="mt-1 text-[11px] text-zinc-500">
+                                  Terakhir debit: {formatDate(customer.last_debit_at)}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-sm text-zinc-700">
                               {partnerName}

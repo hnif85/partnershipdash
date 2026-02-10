@@ -28,9 +28,15 @@ export async function GET(_request: NextRequest) {
         WHERE dee.email IS NULL
       ),
       transactions_idr AS (
-        SELECT DISTINCT customer_guid::uuid AS customer_guid
+        SELECT customer_guid::uuid AS customer_guid
         FROM transactions
         WHERE UPPER(valuta_code) = 'IDR' AND LOWER(status) = 'finished'
+      ),
+      referral_transactions AS (
+        SELECT fc.referal_code, COUNT(*) AS transaction_count
+        FROM filtered_customers fc
+        JOIN transactions_idr ti ON ti.customer_guid = fc.guid::uuid
+        GROUP BY fc.referal_code
       ),
       expired_apps AS (
         SELECT DISTINCT fc.guid
@@ -54,13 +60,15 @@ export async function GET(_request: NextRequest) {
         COUNT(*)                            AS registered_users,
         COUNT(DISTINCT CASE WHEN ti.customer_guid IS NOT NULL THEN fc.guid END) AS buying_users,
         COUNT(DISTINCT CASE WHEN ea.guid IS NOT NULL THEN fc.guid END)          AS expired_app_users,
-        COUNT(DISTINCT CASE WHEN aa.guid IS NOT NULL THEN fc.guid END)          AS all_active_app_users
+        COUNT(DISTINCT CASE WHEN aa.guid IS NOT NULL THEN fc.guid END)          AS all_active_app_users,
+        COALESCE(rt.transaction_count, 0) AS transaction_count
       FROM filtered_customers fc
       LEFT JOIN referral_partners rp ON rp.code = fc.referal_code
       LEFT JOIN transactions_idr ti ON ti.customer_guid = fc.guid::uuid
       LEFT JOIN expired_apps ea ON ea.guid = fc.guid
       LEFT JOIN active_apps aa ON aa.guid = fc.guid
-      GROUP BY fc.referal_code, rp.partner
+      LEFT JOIN referral_transactions rt ON rt.referal_code = fc.referal_code
+      GROUP BY fc.referal_code, rp.partner, rt.transaction_count
       ORDER BY registered_users DESC, fc.referal_code;
     `;
 
@@ -224,6 +232,28 @@ export async function GET(_request: NextRequest) {
       ) u
     `;
 
+    const churnCountsQuery = `
+      WITH filtered_customers AS (
+        SELECT c.guid::uuid AS guid
+        FROM cms_customers c
+        LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+        WHERE dee.email IS NULL
+      ),
+      last_usage AS (
+        SELECT
+          cmt.user_id,
+          MAX(cmt.created_at) FILTER (WHERE LOWER(cmt.type) = 'debit') AS last_debit_at
+        FROM credit_manager_transactions cmt
+        GROUP BY cmt.user_id
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE lu.last_debit_at IS NOT NULL AND lu.last_debit_at >= NOW() - INTERVAL '7 days')::int AS active_users,
+        COUNT(*) FILTER (WHERE lu.last_debit_at IS NOT NULL AND lu.last_debit_at < NOW() - INTERVAL '7 days' AND lu.last_debit_at >= NOW() - INTERVAL '30 days')::int AS idle_users,
+        COUNT(*) FILTER (WHERE lu.last_debit_at IS NULL OR lu.last_debit_at < NOW() - INTERVAL '30 days')::int AS passive_users
+      FROM filtered_customers fc
+      LEFT JOIN last_usage lu ON lu.user_id = fc.guid
+    `;
+
     const [
       usersPurchasedRes,
       referralStatsRes,
@@ -233,7 +263,8 @@ export async function GET(_request: NextRequest) {
       totalCustomersRes,
       expiredUsersRes,
       activeCustomersRes,
-      usersWithTransactionsRes
+      usersWithTransactionsRes,
+      churnCountsRes
     ] = await Promise.all([
       pool.query(usersPurchasedQuery),
       pool.query(referralStatsQuery),
@@ -243,7 +274,8 @@ export async function GET(_request: NextRequest) {
       pool.query(totalCustomersQuery),
       pool.query(expiredUsersQuery),
       pool.query(activeCustomersQuery),
-      pool.query(usersWithTransactionsQuery)
+      pool.query(usersWithTransactionsQuery),
+      pool.query(churnCountsQuery)
     ]);
 
     const referralStats = referralStatsRes.rows.map((row) => ({
@@ -253,6 +285,7 @@ export async function GET(_request: NextRequest) {
       buying_users: Number(row.buying_users) || 0,
       expired_app_users: Number(row.expired_app_users) || 0,
       all_active_app_users: Number(row.all_active_app_users) || 0,
+      transaction_count: Number(row.transaction_count) || 0,
     }));
 
     const dashboardData = {
@@ -268,6 +301,11 @@ export async function GET(_request: NextRequest) {
         total_customers: Number(totalCustomersRes.rows[0]?.total_customers || 0),
         active_customers: Number(activeCustomersRes.rows[0]?.active_customers || 0),
         expired_users: Number(expiredUsersRes.rows[0]?.expired_users || 0),
+      },
+      churnStats: {
+        active_users: Number(churnCountsRes.rows[0]?.active_users || 0),
+        idle_users: Number(churnCountsRes.rows[0]?.idle_users || 0),
+        passive_users: Number(churnCountsRes.rows[0]?.passive_users || 0),
       },
       timestamp: new Date().toISOString(),
     };

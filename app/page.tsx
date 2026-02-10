@@ -11,6 +11,7 @@ type ReferralRow = {
   buying_users: number;
   expired_app_users: number;
   all_active_app_users: number;
+  transaction_count: number;
 };
 
 type DailyPurchase = {
@@ -33,6 +34,11 @@ type DashboardData = {
   dailyPurchases: DailyPurchase[];
   dailyUsage: DailyUsage[];
   expiringSoonUsers: number;
+  churnStats?: {
+    active_users: number;
+    idle_users: number;
+    passive_users: number;
+  };
   timestamp: string;
 };
 
@@ -45,7 +51,8 @@ type SortKey =
   | "buying_users"
   | "registered_users"
   | "expired_app_users"
-  | "all_active_app_users";
+  | "all_active_app_users"
+  | "transaction_count";
 
 const formatShortDate = (value: string) =>
   new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
@@ -208,6 +215,8 @@ export default function Dashboard() {
             return row.expired_app_users;
           case "all_active_app_users":
             return row.all_active_app_users;
+          case "transaction_count":
+            return row.transaction_count;
         }
       };
       const va = getVal(a, sortKey);
@@ -247,6 +256,7 @@ export default function Dashboard() {
         "User Terdaftar": row.registered_users,
         "Punya App Expired": row.expired_app_users,
         "Semua App Aktif": row.all_active_app_users,
+        "Jumlah Transaksi": row.transaction_count,
       }));
       const ws = XLSX.utils.json_to_sheet(rows);
       const wb = XLSX.utils.book_new();
@@ -331,6 +341,42 @@ export default function Dashboard() {
                     </Link>
                   </div>
                 </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                <Link
+                  href="/customers?churnFilter=aktif"
+                  className="rounded-xl border border-emerald-200 bg-white p-6 shadow-sm hover:border-emerald-400 transition"
+                >
+                  <p className="text-xs font-semibold uppercase text-emerald-700">User Aktif</p>
+                  <p className="mt-2 text-3xl font-bold text-emerald-900">
+                    {formatNumber(data?.churnStats?.active_users)}
+                  </p>
+                  <p className="text-sm text-zinc-600 mt-1">Penggunaan ≤ 7 hari terakhir.</p>
+                  <div className="mt-3 text-sm font-semibold text-emerald-700">Lihat Customers →</div>
+                </Link>
+                <Link
+                  href="/customers?churnFilter=idle"
+                  className="rounded-xl border border-amber-200 bg-white p-6 shadow-sm hover:border-amber-400 transition"
+                >
+                  <p className="text-xs font-semibold uppercase text-amber-700">User Idle</p>
+                  <p className="mt-2 text-3xl font-bold text-amber-900">
+                    {formatNumber(data?.churnStats?.idle_users)}
+                  </p>
+                  <p className="text-sm text-zinc-600 mt-1">Penggunaan 7–30 hari lalu.</p>
+                  <div className="mt-3 text-sm font-semibold text-amber-700">Lihat Customers →</div>
+                </Link>
+                <Link
+                  href="/customers?churnFilter=pasif"
+                  className="rounded-xl border border-red-200 bg-white p-6 shadow-sm hover:border-red-400 transition"
+                >
+                  <p className="text-xs font-semibold uppercase text-red-700">User Pasif</p>
+                  <p className="mt-2 text-3xl font-bold text-red-900">
+                    {formatNumber(data?.churnStats?.passive_users)}
+                  </p>
+                  <p className="text-sm text-zinc-600 mt-1">Penggunaan &gt; 30 hari lalu / belum pernah.</p>
+                  <div className="mt-3 text-sm font-semibold text-red-700">Lihat Customers →</div>
+                </Link>
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">
@@ -469,12 +515,18 @@ export default function Dashboard() {
                         >
                           User dengan App Aktif <SortIcon active={sortKey === "all_active_app_users"} />
                         </th>
+                        <th
+                          className="py-3 px-2 font-semibold text-zinc-700 cursor-pointer select-none"
+                          onClick={() => toggleSort("transaction_count")}
+                        >
+                          Jumlah Transaksi <SortIcon active={sortKey === "transaction_count"} />
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {referralRows.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-zinc-500">Tidak ada data referral.</td>
+                          <td colSpan={7} className="py-6 text-center text-zinc-500">Tidak ada data referral.</td>
                         </tr>
                       ) : (
                         referralRows.map((row) => (
@@ -485,6 +537,7 @@ export default function Dashboard() {
                             <td className="py-3 px-2 text-zinc-800">{formatNumber(row.registered_users)}</td>
                             <td className="py-3 px-2 text-orange-600 font-semibold">{formatNumber(row.expired_app_users)}</td>
                             <td className="py-3 px-2 text-[#0f5132] font-semibold">{formatNumber(row.all_active_app_users)}</td>
+                            <td className="py-3 px-2 text-[#1f3c88] font-semibold">{formatNumber(row.transaction_count)}</td>
                           </tr>
                         ))
                       )}

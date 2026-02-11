@@ -84,3 +84,4 @@ check_counts.ts
 migrations/*.ts
 docs/schema.sql
 plans/event_management_spec.md
+docs/schema.sql

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback, Dispatch, SetStateAction } from "react";
 import * as XLSX from "xlsx";
 
 type ReferralRow = {
@@ -30,6 +30,7 @@ type DailyUsage = {
 
 type DashboardData = {
   usersPurchasedIdrFinished: number;
+  transactionsPurchasedIdrFinished: number;
   referralStats: ReferralRow[];
   dailyPurchases: DailyPurchase[];
   dailyUsage: DailyUsage[];
@@ -44,6 +45,11 @@ type DashboardData = {
 
 const formatNumber = (n: number | undefined) =>
   typeof n === "number" ? n.toLocaleString("id-ID") : "-";
+
+type SyncState = {
+  status: "idle" | "loading" | "success" | "error";
+  message: string | null;
+};
 
 type SortKey =
   | "referal_code"
@@ -128,22 +134,81 @@ export default function Dashboard() {
   const [sortKey, setSortKey] = useState<SortKey>("registered_users");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [exporting, setExporting] = useState(false);
+  const [syncUserState, setSyncUserState] = useState<SyncState>({ status: "idle", message: null });
+  const [syncTransactionState, setSyncTransactionState] = useState<SyncState>({ status: "idle", message: null });
+  const [syncUsageState, setSyncUsageState] = useState<SyncState>({ status: "idle", message: null });
+
+  const fetchDashboard = useCallback(async () => {
+    try {
+      const res = await fetch("/api/dashboard");
+      if (!res.ok) throw new Error("Failed to fetch dashboard");
+      const json = (await res.json()) as DashboardData;
+      setData(json);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const res = await fetch("/api/dashboard");
-        if (!res.ok) throw new Error("Failed to fetch dashboard");
-        const json = (await res.json()) as DashboardData;
-        setData(json);
-      } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-      } finally {
-        setLoading(false);
-      }
+    const load = async () => {
+      setLoading(true);
+      await fetchDashboard();
+      setLoading(false);
     };
-    fetchData();
-  }, []);
+    load();
+  }, [fetchDashboard]);
+
+  const runSync = async (
+    endpoint: string,
+    setState: Dispatch<SetStateAction<SyncState>>,
+    formatSuccess: (data: any) => string,
+    options?: RequestInit
+  ) => {
+    setState({ status: "loading", message: null });
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        ...(options || {}),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setState({ status: "success", message: formatSuccess(data) });
+        await fetchDashboard();
+      } else {
+        setState({ status: "error", message: data?.error || "Sync gagal" });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Network error";
+      setState({ status: "error", message });
+    }
+  };
+
+  // Gunakan endpoint sync customers (sama seperti tombol \"Get Customers\" di halaman /customers)
+  const handleSyncUsers = () =>
+    runSync(
+      "/api/sync-customers",
+      setSyncUserState,
+      (data) => `Sync customer berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`
+    );
+
+  const handleSyncTransactions = () =>
+    runSync(
+      "/api/sync-transactions",
+      setSyncTransactionState,
+      (data) => `Sync transaksi berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`,
+      {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}), // sesuai tombol "Sinkron Semua" di /sales
+      }
+    );
+
+  const handleSyncUsage = () =>
+    runSync(
+      "/api/sync-credit-manager-transactions",
+      setSyncUsageState,
+      (data) => `Sync usage berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`
+    );
 
   const purchaseChartData: MiniBarDatum[] = useMemo(() => {
     if (!data?.dailyPurchases) return [];
@@ -309,19 +374,19 @@ export default function Dashboard() {
           ) : (
             <>
               <div className="grid gap-4 md:grid-cols-4">
-                <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm md:col-span-2">
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah user yang membeli Aplikasi</p>
                   <p className="mt-2 text-4xl font-bold text-[#0f172a]">
                     {formatNumber(data?.usersPurchasedIdrFinished)}
                   </p>
                   <p className="text-sm text-zinc-600 mt-1">User yang membeli aplikasi</p>
                 </div>
-                <div className="rounded-xl border border-dashed border-[#1f3c88] bg-white p-6 shadow-sm">
-                  <p className="text-xs font-semibold uppercase text-[#1f3c88]">Shortcut</p>
-                  <div className="mt-3 flex flex-col gap-2 text-sm">
-                    <Link href="/sales" className="text-[#1f3c88] hover:underline font-semibold">Lihat transaksi</Link>
-                    <Link href="/customers" className="text-[#0f5132] hover:underline font-semibold">Lihat customers</Link>
-                  </div>
+                <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah transaksi</p>
+                  <p className="mt-2 text-4xl font-bold text-[#0f172a]">
+                    {formatNumber(data?.transactionsPurchasedIdrFinished)}
+                  </p>
+                  <p className="text-sm text-zinc-600 mt-1">Transaksi IDR berstatus finished, non-demo.</p>
                 </div>
                 <div className="rounded-xl border border-[#e7d6ff] bg-white p-6 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-[#5b21b6]">Expired &lt; 7 Hari</p>
@@ -341,6 +406,69 @@ export default function Dashboard() {
                     </Link>
                   </div>
                 </div>
+                <div className="rounded-xl border border-dashed border-[#1f3c88] bg-white p-6 shadow-sm">
+                  <p className="text-xs font-semibold uppercase text-[#1f3c88]">Shortcut</p>
+                  <div className="mt-3 flex flex-col gap-2 text-sm">
+                    <Link href="/sales" className="text-[#1f3c88] hover:underline font-semibold">Lihat transaksi</Link>
+                    <Link href="/customers" className="text-[#0f5132] hover:underline font-semibold">Lihat customers</Link>
+                  </div>
+                  <div className="mt-4 border-t border-dashed border-[#e5e7eb] pt-4">
+                    <p className="text-xs font-semibold uppercase text-[#1f3c88] mb-3">Sync Cepat</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleSyncUsers}
+                        disabled={syncUserState.status === "loading"}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition border ${
+                          syncUserState.status === "loading"
+                            ? "border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
+                            : "border-[#1f3c88] text-[#1f3c88] hover:bg-[#f0f4ff]"
+                        }`}
+                      >
+                        {syncUserState.status === "loading" ? "Sync User..." : "Sync User"}
+                      </button>
+                      <button
+                        onClick={handleSyncTransactions}
+                        disabled={syncTransactionState.status === "loading"}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition border ${
+                          syncTransactionState.status === "loading"
+                            ? "border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
+                            : "border-[#0f5132] text-[#0f5132] hover:bg-[#e7f5ec]"
+                        }`}
+                      >
+                        {syncTransactionState.status === "loading" ? "Sync Transaksi..." : "Sync Transaksi"}
+                      </button>
+                      <button
+                        onClick={handleSyncUsage}
+                        disabled={syncUsageState.status === "loading"}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition border ${
+                          syncUsageState.status === "loading"
+                            ? "border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
+                            : "border-[#d97706] text-[#d97706] hover:bg-[#fff7ed]"
+                        }`}
+                      >
+                        {syncUsageState.status === "loading" ? "Sync Usage..." : "Sync Usage"}
+                      </button>
+                    </div>
+                    <div className="mt-3 space-y-1 text-xs text-zinc-600">
+                      {syncUserState.message && (
+                        <div className={syncUserState.status === "error" ? "text-red-600" : "text-[#1f3c88]"}>
+                          User: {syncUserState.message}
+                        </div>
+                      )}
+                      {syncTransactionState.message && (
+                        <div className={syncTransactionState.status === "error" ? "text-red-600" : "text-[#0f5132]"}>
+                          Transaksi: {syncTransactionState.message}
+                        </div>
+                      )}
+                      {syncUsageState.message && (
+                        <div className={syncUsageState.status === "error" ? "text-red-600" : "text-[#d97706]"}>
+                          Usage: {syncUsageState.message}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">

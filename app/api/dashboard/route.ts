@@ -14,6 +14,17 @@ export async function GET(_request: NextRequest) {
         AND (dee.email IS NULL)
     `;
 
+    // 1b) Jumlah transaksi (IDR, status finished, filter demo email sama seperti usersPurchasedQuery)
+    const transactionsPurchasedQuery = `
+      SELECT COUNT(*) AS transactions_purchased
+      FROM transactions t
+      LEFT JOIN cms_customers c ON t.customer_guid::uuid = c.guid::uuid
+      LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+      WHERE UPPER(t.valuta_code) = 'IDR'
+        AND LOWER(t.status) = 'finished'
+        AND (dee.email IS NULL)
+    `;
+
     // 2) Statistik referral per kode
     const referralStatsQuery = `
       WITH customers AS (
@@ -256,6 +267,7 @@ export async function GET(_request: NextRequest) {
 
     const [
       usersPurchasedRes,
+      transactionsPurchasedRes,
       referralStatsRes,
       dailyPurchasesRes,
       dailyUsageRes,
@@ -267,6 +279,7 @@ export async function GET(_request: NextRequest) {
       churnCountsRes
     ] = await Promise.all([
       pool.query(usersPurchasedQuery),
+      pool.query(transactionsPurchasedQuery),
       pool.query(referralStatsQuery),
       pool.query(dailyPurchasesQuery),
       pool.query(dailyUsageQuery),
@@ -290,6 +303,9 @@ export async function GET(_request: NextRequest) {
 
     const dashboardData = {
       usersPurchasedIdrFinished: Number(usersPurchasedRes.rows[0]?.users_purchased || 0),
+      transactionsPurchasedIdrFinished: Number(
+        transactionsPurchasedRes.rows[0]?.transactions_purchased || 0
+      ),
       referralStats,
       dailyPurchases: dailyPurchasesRes.rows,
       dailyUsage: dailyUsageRes.rows,

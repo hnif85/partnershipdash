@@ -35,6 +35,15 @@ type DashboardData = {
   dailyPurchases: DailyPurchase[];
   dailyUsage: DailyUsage[];
   expiringSoonUsers: number;
+  creditStats?: {
+    users_with_transactions: number;
+  };
+  customerStats?: {
+    total_customers: number;
+    active_customers: number;
+    expired_users: number;
+    last_updated?: string | null;
+  };
   churnStats?: {
     active_users: number;
     idle_users: number;
@@ -45,6 +54,20 @@ type DashboardData = {
 
 const formatNumber = (n: number | undefined) =>
   typeof n === "number" ? n.toLocaleString("id-ID") : "-";
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return value;
+  return date.toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Jakarta",
+  });
+};
 
 type SyncState = {
   status: "idle" | "loading" | "success" | "error";
@@ -64,6 +87,16 @@ const formatShortDate = (value: string) =>
   new Date(value).toLocaleDateString("id-ID", { day: "2-digit", month: "short" });
 
 type MiniBarDatum = { label: string; value: number; secondary?: number; total?: number };
+
+const buildCumulativeData = (data: MiniBarDatum[]) => {
+  let primary = 0;
+  let secondary = 0;
+  return data.map((d) => {
+    primary += d.value;
+    const nextSecondary = d.secondary !== undefined ? (secondary += d.secondary) : undefined;
+    return { ...d, value: primary, secondary: nextSecondary };
+  });
+};
 
 const MiniBarChart = ({
   data,
@@ -128,6 +161,37 @@ const MiniBarChart = ({
   );
 };
 
+const ModeToggle = ({
+  mode,
+  onChange,
+}: {
+  mode: "daily" | "cumulative";
+  onChange: (value: "daily" | "cumulative") => void;
+}) => {
+  const options: Array<{ key: "daily" | "cumulative"; label: string }> = [
+    { key: "daily", label: "Harian" },
+    { key: "cumulative", label: "Akumulasi" },
+  ];
+
+  return (
+    <div className="flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-1 text-[11px] font-semibold text-zinc-600">
+      {options.map((opt) => (
+        <button
+          key={opt.key}
+          onClick={() => onChange(opt.key)}
+          className={`rounded-full px-2 py-1 transition ${
+            mode === opt.key
+              ? "bg-white text-[#0f172a] shadow-sm"
+              : "text-zinc-500 hover:text-zinc-700"
+          }`}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -137,6 +201,9 @@ export default function Dashboard() {
   const [syncUserState, setSyncUserState] = useState<SyncState>({ status: "idle", message: null });
   const [syncTransactionState, setSyncTransactionState] = useState<SyncState>({ status: "idle", message: null });
   const [syncUsageState, setSyncUsageState] = useState<SyncState>({ status: "idle", message: null });
+  const [purchaseMode, setPurchaseMode] = useState<"daily" | "cumulative">("daily");
+  const [usageCreditMode, setUsageCreditMode] = useState<"daily" | "cumulative">("daily");
+  const [usageUserMode, setUsageUserMode] = useState<"daily" | "cumulative">("daily");
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -225,6 +292,11 @@ export default function Dashboard() {
     return purchaseChartData.map((row) => ({ label: row.label, value: row.value }));
   }, [purchaseChartData]);
 
+  const purchaseCumulativeChartData = useMemo(
+    () => buildCumulativeData(purchaseOnlyChartData),
+    [purchaseOnlyChartData]
+  );
+
   const totalTransactions = useMemo(
     () => purchaseChartData.reduce((s, d) => s + d.value, 0),
     [purchaseChartData]
@@ -243,6 +315,11 @@ export default function Dashboard() {
     }));
   }, [data?.dailyUsage]);
 
+  const usageCreditCumulativeChartData = useMemo(
+    () => buildCumulativeData(usageCreditChartData),
+    [usageCreditChartData]
+  );
+
   const usageUniqueUsersChartData: MiniBarDatum[] = useMemo(() => {
     if (!data?.dailyUsage) return [];
     return data.dailyUsage.map((row) => ({
@@ -250,6 +327,11 @@ export default function Dashboard() {
       value: row.unique_users,
     }));
   }, [data?.dailyUsage]);
+
+  const usageUniqueUsersCumulativeChartData = useMemo(
+    () => buildCumulativeData(usageUniqueUsersChartData),
+    [usageUniqueUsersChartData]
+  );
 
   const totalUsageCredits = useMemo(
     () => usageCreditChartData.reduce((s, d) => s + d.value, 0),
@@ -373,14 +455,23 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-4">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-                  <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah user yang membeli Aplikasi</p>
+                  <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah user yang membeli aplikasi</p>
                   <p className="mt-2 text-4xl font-bold text-[#0f172a]">
                     {formatNumber(data?.usersPurchasedIdrFinished)}
                   </p>
-                  <p className="text-sm text-zinc-600 mt-1">User yang membeli aplikasi</p>
+                  
+                  <br></br>
+                  <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah user</p>
+                  <p className="mt-2 text-4xl font-bold text-[#0f172a]">
+                    {formatNumber(data?.customerStats?.total_customers)}
+                  </p>
+                  <p className="text-sm text-zinc-600 mt-1">
+                    Last update: {formatDateTime(data?.customerStats?.last_updated)}
+                  </p>
                 </div>
+                
                 <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah transaksi</p>
                   <p className="mt-2 text-4xl font-bold text-[#0f172a]">
@@ -515,16 +606,19 @@ export default function Dashboard() {
                       <h2 className="text-lg font-semibold text-[#0f172a]">Pertumbuhan Pembelian</h2>
                       <p className="text-sm text-zinc-600">14 hari terakhir, transaksi IDR berstatus finished.</p>
                     </div>
-                    <div className="text-right text-sm text-zinc-500">
-                      <div>Total transaksi: {formatNumber(totalTransactions)}</div>
-                      <div>Total buyer unik: {formatNumber(totalUniqueBuyers)}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right text-sm text-zinc-500">
+                        <div>Total transaksi: {formatNumber(totalTransactions)}</div>
+                        <div>Total buyer unik: {formatNumber(totalUniqueBuyers)}</div>
+                      </div>
+                      <ModeToggle mode={purchaseMode} onChange={setPurchaseMode} />
                     </div>
                   </div>
                   {purchaseChartData.length === 0 ? (
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data transaksi 14 hari terakhir.</p>
                     ) : (
                     <MiniBarChart
-                      data={purchaseOnlyChartData}
+                      data={purchaseMode === "daily" ? purchaseOnlyChartData : purchaseCumulativeChartData}
                       color="#1f3c88"
                       title="Transaksi"
                       valueLabel="Transaksi"
@@ -539,15 +633,18 @@ export default function Dashboard() {
                       <h2 className="text-lg font-semibold text-[#0f172a]">Debit / Usage per Hari</h2>
                       <p className="text-sm text-zinc-600">14 hari terakhir, berdasarkan transaksi debit Credit Manager.</p>
                     </div>
-                    <div className="text-right text-sm text-zinc-500">
-                      <div>Total usage (credit): {formatNumber(totalUsageCredits)}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right text-sm text-zinc-500">
+                        <div>Total usage (credit): {formatNumber(totalUsageCredits)}</div>
+                      </div>
+                      <ModeToggle mode={usageCreditMode} onChange={setUsageCreditMode} />
                     </div>
                   </div>
                   {usageCreditChartData.length === 0 ? (
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data penggunaan 14 hari terakhir.</p>
                   ) : (
                     <MiniBarChart
-                      data={usageCreditChartData}
+                      data={usageCreditMode === "daily" ? usageCreditChartData : usageCreditCumulativeChartData}
                       color="#0f5132"
                       title="Usage (Credit)"
                       valueLabel="Total Credit"
@@ -562,15 +659,22 @@ export default function Dashboard() {
                       <h2 className="text-lg font-semibold text-[#0f172a]">Pengguna Unik per Hari</h2>
                       <p className="text-sm text-zinc-600">14 hari terakhir, jumlah user unik yang memakai aplikasi.</p>
                     </div>
-                    <div className="text-right text-sm text-zinc-500">
-                      <div>User unik: {formatNumber(totalUsageUniqueUsers)}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right text-sm text-zinc-500">
+                        <div>User unik: {formatNumber(totalUsageUniqueUsers)}</div>
+                      </div>
+                      <ModeToggle mode={usageUserMode} onChange={setUsageUserMode} />
                     </div>
                   </div>
                   {usageUniqueUsersChartData.length === 0 ? (
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data user unik 14 hari terakhir.</p>
                   ) : (
                     <MiniBarChart
-                      data={usageUniqueUsersChartData}
+                      data={
+                        usageUserMode === "daily"
+                          ? usageUniqueUsersChartData
+                          : usageUniqueUsersCumulativeChartData
+                      }
                       color="#f97316"
                       title="User Unik"
                       valueLabel="User Unik"

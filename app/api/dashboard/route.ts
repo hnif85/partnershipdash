@@ -265,6 +265,13 @@ export async function GET(_request: NextRequest) {
       LEFT JOIN last_usage lu ON lu.user_id = fc.guid
     `;
 
+    const lastUpdatedCustomerQuery = `
+      SELECT MAX(COALESCE(c.updated_at, c.created_at)) AS last_updated
+      FROM cms_customers c
+      LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+      WHERE dee.email IS NULL
+    `;
+
     const [
       usersPurchasedRes,
       transactionsPurchasedRes,
@@ -276,7 +283,8 @@ export async function GET(_request: NextRequest) {
       expiredUsersRes,
       activeCustomersRes,
       usersWithTransactionsRes,
-      churnCountsRes
+      churnCountsRes,
+      lastUpdatedCustomerRes
     ] = await Promise.all([
       pool.query(usersPurchasedQuery),
       pool.query(transactionsPurchasedQuery),
@@ -288,7 +296,8 @@ export async function GET(_request: NextRequest) {
       pool.query(expiredUsersQuery),
       pool.query(activeCustomersQuery),
       pool.query(usersWithTransactionsQuery),
-      pool.query(churnCountsQuery)
+      pool.query(churnCountsQuery),
+      pool.query(lastUpdatedCustomerQuery)
     ]);
 
     const referralStats = referralStatsRes.rows.map((row) => ({
@@ -317,6 +326,9 @@ export async function GET(_request: NextRequest) {
         total_customers: Number(totalCustomersRes.rows[0]?.total_customers || 0),
         active_customers: Number(activeCustomersRes.rows[0]?.active_customers || 0),
         expired_users: Number(expiredUsersRes.rows[0]?.expired_users || 0),
+        last_updated: lastUpdatedCustomerRes.rows[0]?.last_updated
+          ? new Date(lastUpdatedCustomerRes.rows[0].last_updated).toISOString()
+          : null,
       },
       churnStats: {
         active_users: Number(churnCountsRes.rows[0]?.active_users || 0),

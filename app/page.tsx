@@ -69,6 +69,13 @@ const formatDateTime = (value?: string | null) => {
   });
 };
 
+const formatDate = (value?: string | null) => {
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
+};
+
 type SyncState = {
   status: "idle" | "loading" | "success" | "error";
   message: string | null;
@@ -198,6 +205,7 @@ export default function Dashboard() {
   const [sortKey, setSortKey] = useState<SortKey>("registered_users");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [exporting, setExporting] = useState(false);
+  const [exportingSales, setExportingSales] = useState(false);
   const [syncUserState, setSyncUserState] = useState<SyncState>({ status: "idle", message: null });
   const [syncTransactionState, setSyncTransactionState] = useState<SyncState>({ status: "idle", message: null });
   const [syncUsageState, setSyncUsageState] = useState<SyncState>({ status: "idle", message: null });
@@ -417,6 +425,79 @@ export default function Dashboard() {
     }
   };
 
+  const handleExportSales = async () => {
+    setExportingSales(true);
+    try {
+      const params = new URLSearchParams({
+        page: "1",
+        limit: "99999",
+        search: "",
+        status: "finished",
+        start_date: "",
+        end_date: "",
+        customer_guid: "",
+        currency: "IDR",
+        referral: "",
+      });
+
+      const res = await fetch(`/api/transactions?${params.toString()}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const payload: any = await res.json();
+      if (!payload.transactions) throw new Error(payload.error || "Payload kosong");
+
+      const exportData = (payload.transactions as any[]).map((transaction) => ({
+        Invoice: transaction.invoice_number || "",
+        Customer: transaction.customer_full_name || transaction.customer_username || "N/A",
+        Referral: transaction.referral_name || "N/A",
+        Email: transaction.customer_email || "",
+        Product:
+          transaction.transaction_details && transaction.transaction_details.length > 0
+            ? transaction.transaction_details.length === 1
+              ? transaction.transaction_details[0].product_name
+              : `${transaction.transaction_details[0].product_name} (+${transaction.transaction_details.length - 1} more items)`
+            : "-",
+        Payment: transaction.payment_channel_name || "",
+        Amount: `${transaction.valuta_code || "USD"} ${transaction.grand_total?.toLocaleString("id-ID", {
+          minimumFractionDigits: 2,
+        }) || "0.00"}`,
+        Quantity: transaction.qty || 0,
+        Status: transaction.status || "Unknown",
+        Date: formatDate(transaction.created_at),
+        Transaction_GUID: transaction.guid,
+        Customer_GUID: transaction.customer_guid,
+      }));
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      ws["!cols"] = [
+        { wch: 20 },
+        { wch: 25 },
+        { wch: 20 },
+        { wch: 30 },
+        { wch: 35 },
+        { wch: 20 },
+        { wch: 15 },
+        { wch: 10 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 40 },
+        { wch: 40 },
+      ];
+      XLSX.utils.book_append_sheet(wb, ws, "MWX Transactions");
+
+      const now = new Date();
+      const filename = `mwx_transactions_${now.getFullYear()}${(now.getMonth() + 1)
+        .toString()
+        .padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    } catch (err) {
+      console.error("Export sales failed:", err);
+      alert("Export failed: " + (err instanceof Error ? err.message : "Unknown error"));
+    } finally {
+      setExportingSales(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
       <div className="flex w-full flex-col gap-8 px-6 py-10 lg:px-10 lg:py-14">
@@ -478,6 +559,17 @@ export default function Dashboard() {
                     {formatNumber(data?.transactionsPurchasedIdrFinished)}
                   </p>
                   <p className="text-sm text-zinc-600 mt-1">Transaksi IDR berstatus finished, non-demo.</p>
+                  <button
+                    onClick={handleExportSales}
+                    disabled={exportingSales}
+                    className={`mt-4 inline-flex items-center justify-center rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                      exportingSales
+                        ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
+                        : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700"
+                    }`}
+                  >
+                    {exportingSales ? "Exporting..." : "Export to XLS"}
+                  </button>
                 </div>
                 <div className="rounded-xl border border-[#e7d6ff] bg-white p-6 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-[#5b21b6]">Expired &lt; 7 Hari</p>
@@ -604,13 +696,10 @@ export default function Dashboard() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-[#1f3c88]">Pembelian Harian</p>
                       <h2 className="text-lg font-semibold text-[#0f172a]">Pertumbuhan Pembelian</h2>
-                      <p className="text-sm text-zinc-600">14 hari terakhir, transaksi IDR berstatus finished.</p>
+                      <p className="text-sm text-zinc-600">14 hari terakhir</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="text-right text-sm text-zinc-500">
-                        <div>Total transaksi: {formatNumber(totalTransactions)}</div>
-                        <div>Total buyer unik: {formatNumber(totalUniqueBuyers)}</div>
-                      </div>
+                      
                       <ModeToggle mode={purchaseMode} onChange={setPurchaseMode} />
                     </div>
                   </div>
@@ -631,12 +720,10 @@ export default function Dashboard() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-[#0f5132]">Penggunaan Aplikasi</p>
                       <h2 className="text-lg font-semibold text-[#0f172a]">Debit / Usage per Hari</h2>
-                      <p className="text-sm text-zinc-600">14 hari terakhir, berdasarkan transaksi debit Credit Manager.</p>
+                      <p className="text-sm text-zinc-600">14 hari terakhir</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="text-right text-sm text-zinc-500">
-                        <div>Total usage (credit): {formatNumber(totalUsageCredits)}</div>
-                      </div>
+                      
                       <ModeToggle mode={usageCreditMode} onChange={setUsageCreditMode} />
                     </div>
                   </div>
@@ -657,12 +744,9 @@ export default function Dashboard() {
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-[#d97706]">User Unik</p>
                       <h2 className="text-lg font-semibold text-[#0f172a]">Pengguna Unik per Hari</h2>
-                      <p className="text-sm text-zinc-600">14 hari terakhir, jumlah user unik yang memakai aplikasi.</p>
+                      <p className="text-sm text-zinc-600">14 hari terakhir.</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right text-sm text-zinc-500">
-                        <div>User unik: {formatNumber(totalUsageUniqueUsers)}</div>
-                      </div>
+                    <div className="flex items-center gap-3">                      
                       <ModeToggle mode={usageUserMode} onChange={setUsageUserMode} />
                     </div>
                   </div>
@@ -687,7 +771,7 @@ export default function Dashboard() {
                 <div className="flex flex-col gap-1 border-b border-zinc-200 pb-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[#1f3c88]">Referral Performance</p>
                   <h2 className="text-lg font-semibold text-[#0f172a]">Pembelian & Status Aplikasi per Referral</h2>
-                  <p className="text-sm text-zinc-600">Ringkasan jumlah user beli, daftar, serta status expired aplikasi.</p>
+                  <p className="text-sm text-zinc-600">Ringkasan jumlah user beli.</p>
                 </div>
                 <div className="mt-4 flex flex-wrap justify-end">
                   <button

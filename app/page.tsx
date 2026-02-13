@@ -558,7 +558,8 @@ export default function Dashboard() {
                   <p className="mt-2 text-4xl font-bold text-[#0f172a]">
                     {formatNumber(data?.transactionsPurchasedIdrFinished)}
                   </p>
-                  <p className="text-sm text-zinc-600 mt-1">Transaksi IDR berstatus finished, non-demo.</p>
+                  <br></br>
+                 
                   <button
                     onClick={handleExportSales}
                     disabled={exportingSales}
@@ -568,8 +569,14 @@ export default function Dashboard() {
                         : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700"
                     }`}
                   >
+                    
                     {exportingSales ? "Exporting..." : "Export to XLS"}
                   </button>
+                  <br></br>
+                  <p className="text-sm text-zinc-600 mt-1">
+                    Last update transaksi: {formatDateTime(data?.timestamp)}
+                    <p>Apabila memerlukan data terbaru, silakan klik tombol "Sync User" atau "Sync Transaksi". </p> 
+                  </p>
                 </div>
                 <div className="rounded-xl border border-[#e7d6ff] bg-white p-6 shadow-sm">
                   <p className="text-xs font-semibold uppercase text-[#5b21b6]">Expired &lt; 7 Hari</p>

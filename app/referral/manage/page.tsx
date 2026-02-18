@@ -187,7 +187,11 @@ export default function ReferralManagePage() {
               {scanning ? 'Scanning...' : 'Scan Referrals'}
             </button>
             <button
-              onClick={() => { setShowForm(true); setEditingPartner(null); setFormData({ code: "", partner: "", is_gov: false }); }}
+              onClick={() => {
+                setShowForm(true);
+                setEditingPartner(null);
+                setFormData({ code: "", partner: "", is_gov: false, activity_slug: "" });
+              }}
               className="rounded-lg border border-green-600 bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700 hover:border-green-700"
             >
               Add New Partner

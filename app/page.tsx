@@ -575,7 +575,7 @@ export default function Dashboard() {
                   <br></br>
                   <p className="text-sm text-zinc-600 mt-1">
                     Last update transaksi: {formatDateTime(data?.timestamp)}
-                    <p>Apabila memerlukan data terbaru, silakan klik tombol "Sync User" atau "Sync Transaksi". </p> 
+                    Apabila memerlukan data terbaru, silakan klik tombol "Sync User" atau "Sync Transaksi".
                   </p>
                 </div>
                 <div className="rounded-xl border border-[#e7d6ff] bg-white p-6 shadow-sm">

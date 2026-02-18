@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ACTIVITY_LABELS, ACTIVITY_SLUGS, ActivitySlug } from "@/lib/activityMapping";
 
 interface ReferralPartner {
   id: string;
   code: string;
   partner: string;
   is_gov: boolean;
+  activity_slug: ActivitySlug | null;
   is_new: boolean;
   created_at: string;
   updated_at: string;
@@ -17,6 +19,7 @@ type NewReferral = {
   code: string;
   partner: string;
   is_gov: boolean;
+  activity_slug: ActivitySlug | "";
 };
 
 export default function ReferralManagePage() {
@@ -24,7 +27,7 @@ export default function ReferralManagePage() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingPartner, setEditingPartner] = useState<ReferralPartner | null>(null);
-  const [formData, setFormData] = useState<NewReferral>({ code: "", partner: "", is_gov: false });
+  const [formData, setFormData] = useState<NewReferral>({ code: "", partner: "", is_gov: false, activity_slug: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
@@ -76,7 +79,7 @@ export default function ReferralManagePage() {
 
       await loadReferralPartners();
       setShowForm(false);
-      setFormData({ code: "", partner: "", is_gov: false });
+      setFormData({ code: "", partner: "", is_gov: false, activity_slug: "" });
       setEditingPartner(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -90,7 +93,8 @@ export default function ReferralManagePage() {
     setFormData({
       code: partner.code || '',
       partner: partner.partner || '',
-      is_gov: partner.is_gov || false
+      is_gov: partner.is_gov || false,
+      activity_slug: partner.activity_slug || "",
     });
     setShowForm(true);
     setError(null);
@@ -155,7 +159,7 @@ export default function ReferralManagePage() {
   const resetForm = () => {
     setShowForm(false);
     setEditingPartner(null);
-    setFormData({ code: "", partner: "", is_gov: false });
+    setFormData({ code: "", partner: "", is_gov: false, activity_slug: "" });
     setError(null);
   };
 
@@ -231,6 +235,25 @@ export default function ReferralManagePage() {
                   />
                 </div>
               </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 mb-1">
+                    Activity Card Mapping
+                  </label>
+                  <select
+                    value={formData.activity_slug}
+                    onChange={(e) => setFormData({ ...formData, activity_slug: e.target.value as ActivitySlug | "" })}
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                  >
+                    <option value="">(Kosong / fallback otomatis)</option>
+                    {ACTIVITY_SLUGS.map((slug) => (
+                      <option key={slug} value={slug}>
+                        {ACTIVITY_LABELS[slug]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
               <div className="flex items-center">
                 <input
                   type="checkbox"
@@ -296,6 +319,9 @@ export default function ReferralManagePage() {
                       Type
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                      Activity Map
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                       Created
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
@@ -327,6 +353,15 @@ export default function ReferralManagePage() {
                         }`}>
                           {partner.is_gov ? 'BUMN/Gov' : 'Private'}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-zinc-700">
+                        {partner.activity_slug ? (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">
+                            {ACTIVITY_LABELS[partner.activity_slug]}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-500">Auto (by referral name)</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-zinc-700">
                         {new Date(partner.created_at).toLocaleDateString('id-ID')}

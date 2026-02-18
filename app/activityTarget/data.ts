@@ -27,12 +27,12 @@ export const activities: Activity[] = [
     achieved: 23,
   },
   {
-    slug: "impact-plus-program-inti",
+    slug: "impact-plus",
     title: "Impact Plus",
     description: "Program CSR/kemitraan untuk adopsi teknologi UMKM skala besar.",
     meta: "5 perusahaan x 12.000 trx",
     target: 50000,
-    achieved: 0,
+    achieved: 310,
     highlight: true,
   },
   {
@@ -49,7 +49,7 @@ export const activities: Activity[] = [
     description: "Aktivasi berbasis institusi dan komunitas.",
     meta: "10 event x 100 UMKM x 1 trx",
     target: 13000,
-    achieved: 28,
+    achieved: 31,
   },
   {
     slug: "on-ground-activation",
@@ -57,7 +57,7 @@ export const activities: Activity[] = [
     description: "Aktivasi hands-on berbasis kota.",
     meta: "4 kota x 500 UMKM x 5 trx",
     target: 11000,
-    achieved: 18,
+    achieved: 21,
   },
 ];
 

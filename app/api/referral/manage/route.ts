@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { ACTIVITY_SLUGS } from "@/lib/activityMapping";
 
 // GET /api/referral/manage - Get all referral partners
 export async function GET(request: NextRequest) {
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
         code,
         partner,
         is_gov,
+        activity_slug,
         is_new,
         created_at,
         updated_at
@@ -24,6 +26,7 @@ export async function GET(request: NextRequest) {
       code: row.code || '',
       partner: row.partner || '',
       is_gov: row.is_gov || false,
+      activity_slug: row.activity_slug || null,
       is_new: row.is_new || false,
       created_at: row.created_at,
       updated_at: row.updated_at
@@ -49,12 +52,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, partner, is_gov } = body;
+    const { code, partner, is_gov, activity_slug } = body;
 
     if (!code || !partner) {
       return NextResponse.json({
         error: "Code and partner name are required"
       }, { status: 400 });
+    }
+
+    if (activity_slug && !ACTIVITY_SLUGS.includes(activity_slug)) {
+      return NextResponse.json({ error: "Invalid activity slug" }, { status: 400 });
     }
 
     // Check if code already exists
@@ -68,12 +75,12 @@ export async function POST(request: NextRequest) {
     }
 
     const insertQuery = `
-      INSERT INTO referral_partners (code, partner, is_gov, is_new, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, NOW(), NOW())
-      RETURNING id, code, partner, is_gov, is_new, created_at, updated_at
+      INSERT INTO referral_partners (code, partner, is_gov, activity_slug, is_new, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+      RETURNING id, code, partner, is_gov, activity_slug, is_new, created_at, updated_at
     `;
 
-    const result = await pool.query(insertQuery, [code, partner, is_gov, false]);
+    const result = await pool.query(insertQuery, [code, partner, is_gov, activity_slug ?? null, false]);
 
     return NextResponse.json({
       message: "Referral partner created successfully",
@@ -95,12 +102,16 @@ export async function PUT(request: NextRequest, context: any) {
     const { params } = context as { params: { id: string } };
     const id = params.id;
     const body = await request.json();
-    const { code, partner, is_gov, is_new } = body;
+    const { code, partner, is_gov, is_new, activity_slug } = body;
 
     if (!partner) {
       return NextResponse.json({
         error: "Partner name is required"
       }, { status: 400 });
+    }
+
+    if (activity_slug && !ACTIVITY_SLUGS.includes(activity_slug)) {
+      return NextResponse.json({ error: "Invalid activity slug" }, { status: 400 });
     }
 
     // Check if partner exists
@@ -131,12 +142,12 @@ export async function PUT(request: NextRequest, context: any) {
 
     const updateQuery = `
       UPDATE referral_partners
-      SET code = $1, partner = $2, is_gov = $3, is_new = $4, updated_at = NOW()
-      WHERE id = $5
-      RETURNING id, code, partner, is_gov, is_new, created_at, updated_at
+      SET code = $1, partner = $2, is_gov = $3, activity_slug = $4, is_new = $5, updated_at = NOW()
+      WHERE id = $6
+      RETURNING id, code, partner, is_gov, activity_slug, is_new, created_at, updated_at
     `;
 
-    const result = await pool.query(updateQuery, [code, partner, is_gov, is_new, id]);
+    const result = await pool.query(updateQuery, [code, partner, is_gov, activity_slug ?? null, is_new, id]);
 
     return NextResponse.json({
       message: "Referral partner updated successfully",

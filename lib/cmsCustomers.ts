@@ -257,7 +257,7 @@ export async function getCmsCustomers(
            END AS churn_status,
            COALESCE(app_totals.applications, ARRAY[]::text[]) AS applications,
            NULL AS app_credits,
-           NULL AS training_data
+           COALESCE(training_data.training_data, '[]'::json) AS training_data
     FROM cms_customers c
     LEFT JOIN (
       SELECT
@@ -282,6 +282,35 @@ export async function getCmsCustomers(
       WHERE cmt.product_name IS NOT NULL
       GROUP BY cmt.user_id
     ) app_totals ON app_totals.user_id = c.guid::uuid
+    LEFT JOIN LATERAL (
+      SELECT json_agg(
+        jsonb_build_object(
+          'nama', p.full_name,
+          'jenis_usaha', p.industry_name,
+          'no_hp', ARRAY_REMOVE(ARRAY[p.phone_normalized, p.phone_raw], NULL),
+          'nama_training', p.training_name,
+          'model_training', p.model_training,
+          'partner', p.partner,
+          'tanggal_input_data', p.tanggal_input_data,
+          'tanggal_input_trial', p.tanggal_input_trial,
+          'akun_aktif_expired', p.trial_status_expired,
+          'username_trial', p.trial_username,
+          'klasifikasi', p.classification,
+          'total_credit_tx', p.total_credit_tx,
+          'total_debit_tx', p.total_debit_tx,
+          'total_credits', p.total_credits,
+          'total_debits', p.total_debits,
+          'latest_balance', p.latest_balance,
+          'credit_usage', p.credit_usage,
+          'sudah_membeli_credit', NULL,
+          'event_date', p.trial_started_at,
+          'event_id', p.event_id,
+          'created_at', p.created_at
+        )
+      ) AS training_data
+      FROM profile p
+      WHERE LOWER(p.customer_guid) = LOWER(c.guid::text)
+    ) training_data ON TRUE
     LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
     ${whereClauseBase}${demoFilter}
     ORDER BY c.created_at DESC
@@ -300,7 +329,15 @@ export async function getCmsCustomers(
 
   await addMailinatorToExcluded(mailinatorEmails);
 
-  return result.rows.map(mapCustomer);
+  const mapped = result.rows.map(mapCustomer);
+  // Dedupe by guid, fallback to email then phone to avoid duplicate rows downstream
+  const uniq = new Map<string, CmsCustomer>();
+  mapped.forEach((c, idx) => {
+    const key = c.guid || c.email || c.phone_number || `idx-${idx}`;
+    if (!uniq.has(key)) uniq.set(key, c);
+  });
+
+  return Array.from(uniq.values());
 }
 
 export async function getCmsCustomersCount(search: string = '', referralPartnerFilter: string = 'all', appFilter: string = 'all', statusFilter: string = 'all', churnFilter: string = 'all'): Promise<number> {
@@ -403,7 +440,7 @@ export async function getCmsCustomersCount(search: string = '', referralPartnerF
   const demoFilter = whereConditions.length > 0 ? ' AND dee.email IS NULL' : ' WHERE dee.email IS NULL';
 
   const countQuery = `
-    SELECT COUNT(*) as count
+    SELECT COUNT(DISTINCT c.guid) as count
     FROM cms_customers c
     LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
     ${whereClauseBase}${demoFilter}

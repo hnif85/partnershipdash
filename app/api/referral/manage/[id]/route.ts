@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { ACTIVITY_SLUGS } from "@/lib/activityMapping";
 
 // PUT /api/referral/manage/[id] - Update referral partner
 export async function PUT(
@@ -9,12 +10,16 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { code, partner, is_gov, is_new } = body;
+    const { code, partner, is_gov, is_new, activity_slug } = body;
 
     if (!code || !partner) {
       return NextResponse.json({
         error: "Code and partner name are required"
       }, { status: 400 });
+    }
+
+    if (activity_slug && !ACTIVITY_SLUGS.includes(activity_slug)) {
+      return NextResponse.json({ error: "Invalid activity slug" }, { status: 400 });
     }
 
     console.log("PUT request for ID:", id, "Body:", body);
@@ -44,12 +49,19 @@ export async function PUT(
 
     const updateQuery = `
       UPDATE referral_partners
-      SET code = $1, partner = $2, is_gov = $3, is_new = $4, updated_at = NOW()
-      WHERE id = $5
-      RETURNING id, code, partner, is_gov, is_new, created_at, updated_at
+      SET code = $1, partner = $2, is_gov = $3, activity_slug = $4, is_new = $5, updated_at = NOW()
+      WHERE id = $6
+      RETURNING id, code, partner, is_gov, activity_slug, is_new, created_at, updated_at
     `;
 
-    const result = await pool.query(updateQuery, [code, partner, is_gov, is_new !== undefined ? is_new : false, id]);
+    const result = await pool.query(updateQuery, [
+      code,
+      partner,
+      is_gov,
+      activity_slug ?? null,
+      is_new !== undefined ? is_new : false,
+      id,
+    ]);
 
     const updatedPartner = result.rows[0];
     return NextResponse.json({
@@ -59,6 +71,7 @@ export async function PUT(
         code: updatedPartner.code || '',
         partner: updatedPartner.partner || '',
         is_gov: updatedPartner.is_gov || false,
+        activity_slug: updatedPartner.activity_slug || null,
         is_new: updatedPartner.is_new || false,
         created_at: updatedPartner.created_at,
         updated_at: updatedPartner.updated_at

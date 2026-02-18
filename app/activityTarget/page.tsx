@@ -46,7 +46,7 @@ export default function ActivityTargets() {
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase text-zinc-500">Target bulanan</p>
+              <p className="text-xs font-semibold uppercase text-zinc-500">Target Akumulasi hingga April</p>
               <p className="mt-2 text-3xl font-bold text-[#0f172a]">
                 {formatNumber(totalTarget)} <span className="text-base font-semibold text-zinc-500">trx</span>
               </p>

@@ -736,6 +736,9 @@ export default function CustomersPage() {
                           Nama / Email
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                          No. Telepon
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                           Kredit
                         </th>
                         <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
@@ -760,6 +763,7 @@ export default function CustomersPage() {
                         const training = customer.training_data?.[0];
                         const displayName = (customer.full_name || "").trim() || training?.nama || "N/A";
                         const detailId = customer.guid || customer.email || "";
+                        const phoneNumber = (customer.phone_number || training?.no_hp?.[0] || "").toString().trim();
 
                         // Parse subscription applications
                         const getSubscriptionApps = () => {
@@ -817,6 +821,17 @@ export default function CustomersPage() {
                             <td className="px-4 py-3">
                               <div className="font-semibold text-[#0f172a]">{displayName}</div>
                               <div className="text-xs text-zinc-500">{customer.email || "-"}</div>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-zinc-700">
+                              <div className="font-mono text-xs text-zinc-700">
+                                {phoneNumber || "-"}
+                              </div>
+                              {customer.is_phone_number_verified && (
+                                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                  Verified
+                                </span>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-sm text-zinc-700">
                               <div className="font-semibold">

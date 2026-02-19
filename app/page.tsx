@@ -259,12 +259,16 @@ export default function Dashboard() {
     }
   };
 
-  // Gunakan endpoint sync customers (sama seperti tombol \"Get Customers\" di halaman /customers)
+  // Sync customers incremental: H-1 dari last created_at hingga hari ini (00:00-23:59)
   const handleSyncUsers = () =>
     runSync(
-      "/api/sync-customers",
+      "/api/sync-customers/v2",
       setSyncUserState,
-      (data) => `Sync customer berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`
+      (data) => `Sync customer berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`,
+      {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ incremental: true }),
+      }
     );
 
   const handleSyncTransactions = () =>

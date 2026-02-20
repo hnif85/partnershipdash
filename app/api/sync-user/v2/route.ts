@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 import { upsertCustomer } from "../../../../lib/cmsCustomers";
-import fs from "fs";
-import path from "path";
 
 const API_URL = "https://api-mwxmarket.mwxmarket.ai/cms-service/customer/list";
 const API_KEY = "8wHKXjrO/LtJ92zCyXHelt8gzlXKIfUDAn40/AkCf2cer7rreV4lOKdJXij42XVcCn6P4/ekaWHDkTHWEPUpHGwe";
@@ -118,55 +116,6 @@ function mapApiCustomerToDb(apiCustomer: ApiCustomer) {
   };
 }
 
-function escapeCsvValue(value: any): string {
-  if (value === null || value === undefined) return '';
-  const stringValue = String(value);
-  // Escape quotes and wrap in quotes if contains comma, quote, or newline
-  if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
-    return '"' + stringValue.replace(/"/g, '""') + '"';
-  }
-  return stringValue;
-}
-
-function customerToCsvRow(apiCustomer: ApiCustomer): string {
-  const row = [
-    escapeCsvValue(apiCustomer.guid),
-    escapeCsvValue(apiCustomer.username),
-    escapeCsvValue(apiCustomer.full_name),
-    escapeCsvValue(apiCustomer.email),
-    escapeCsvValue(apiCustomer.phone_number),
-    escapeCsvValue(apiCustomer.city),
-    escapeCsvValue(apiCustomer.country),
-    escapeCsvValue(apiCustomer.status),
-    escapeCsvValue(''), // is_active (not available in API)
-    escapeCsvValue(apiCustomer.is_email_verified),
-    escapeCsvValue(apiCustomer.is_phone_number_verified),
-    escapeCsvValue(apiCustomer.referal_code),
-    escapeCsvValue(apiCustomer.created_at),
-    escapeCsvValue(apiCustomer.updated_at),
-    escapeCsvValue(apiCustomer.gender),
-    escapeCsvValue(apiCustomer.birth_date),
-    escapeCsvValue(apiCustomer.identity_number),
-    escapeCsvValue(apiCustomer.country_id),
-    escapeCsvValue(apiCustomer.city_id),
-    escapeCsvValue(apiCustomer.is_identity_verified),
-    escapeCsvValue(apiCustomer.bank_name),
-    escapeCsvValue(apiCustomer.bank_account_number),
-    escapeCsvValue(apiCustomer.bank_owner_name),
-    escapeCsvValue(apiCustomer.corporate_name),
-    escapeCsvValue(apiCustomer.industry_name),
-    escapeCsvValue(apiCustomer.employee_qty),
-    escapeCsvValue(apiCustomer.solution_corporate_needs),
-    escapeCsvValue(apiCustomer.is_free_trial_use),
-    escapeCsvValue(apiCustomer.created_by?.guid),
-    escapeCsvValue(apiCustomer.created_by?.name),
-    escapeCsvValue(apiCustomer.updated_by?.guid),
-    escapeCsvValue(apiCustomer.updated_by?.name),
-    escapeCsvValue(JSON.stringify(apiCustomer.subscribe_list))
-  ];
-  return row.join(',') + '\n';
-}
-
 export async function POST() {
   try {
     let offset = 0;
@@ -174,27 +123,6 @@ export async function POST() {
     let totalData = 0;
     let batchCount = 0;
     const processedGuids = new Set<string>(); // Track processed GUIDs to avoid duplicates
-
-    // Prepare CSV file
-    const csvFilePath = path.join(process.cwd(), 'customers_sync.csv');
-    const csvHeaders = [
-      'guid', 'username', 'full_name', 'email', 'phone_number', 'city', 'country',
-      'status', 'is_active', 'is_email_verified', 'is_phone_number_verified',
-      'referal_code', 'created_at', 'updated_at', 'gender', 'birth_date',
-      'identity_number', 'country_id', 'city_id', 'is_identity_verified',
-      'bank_name', 'bank_account_number', 'bank_owner_name', 'corporate_name',
-      'industry_name', 'employee_qty', 'solution_corporate_needs', 'is_free_trial_use',
-      'created_by_guid', 'created_by_name', 'updated_by_guid', 'updated_by_name',
-      'subscribe_list'
-    ];
-
-    // Write CSV headers only if file doesn't exist
-    if (!fs.existsSync(csvFilePath)) {
-      fs.writeFileSync(csvFilePath, csvHeaders.join(',') + '\n');
-      console.log(`CSV file created with headers: ${csvFilePath}`);
-    } else {
-      console.log(`CSV file exists, appending to: ${csvFilePath}`);
-    }
     console.log("Starting customer sync v2...");
 
     while (true) {
@@ -224,9 +152,6 @@ export async function POST() {
       let batchErrors = 0;
       const errors: string[] = [];
 
-      // Collect CSV rows for this batch
-      const csvRows: string[] = [];
-
       for (let i = 0; i < customers.length; i++) {
         const apiCustomer = customers[i];
 
@@ -242,7 +167,6 @@ export async function POST() {
 
           // Mark as processed and add to CSV
           processedGuids.add(apiCustomer.guid);
-          csvRows.push(customerToCsvRow(apiCustomer));
 
           batchSuccess++;
           totalSynced++;
@@ -255,12 +179,6 @@ export async function POST() {
       }
 
       console.log(`Batch ${batchCount} processed ${customers.length} customers, ${customers.length - (batchSuccess + batchErrors)} duplicates skipped`);
-
-      // Write successful records to CSV file
-      if (csvRows.length > 0) {
-        fs.appendFileSync(csvFilePath, csvRows.join(''));
-        console.log(`Wrote ${csvRows.length} records to CSV for batch ${batchCount}`);
-      }
 
       console.log(`Batch ${batchCount} complete: ${batchSuccess} success, ${batchErrors} errors. Total synced so far: ${totalSynced}`);
 

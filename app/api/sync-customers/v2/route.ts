@@ -215,6 +215,7 @@ export async function POST(request: Request) {
     let errorCount = 0;
     let totalProcessed = 0;
     let totalPage = 0;
+    const processedGuids = new Set<string>();
 
     // Iterate through paginated API until no more data
     // The external API returns current_page/total_page so we stop when finished or when batch < limit.
@@ -232,25 +233,34 @@ export async function POST(request: Request) {
       if (!customers.length) break;
 
       for (const apiCustomer of customers) {
-        if (!apiCustomer?.guid) {
+        const guid = apiCustomer?.guid;
+
+        if (!guid) {
           errorCount++;
           results.push({ guid: undefined, status: "error", error: "Missing guid" });
           continue;
         }
 
+        if (processedGuids.has(guid)) {
+          // Skip duplicate customer within the same sync run
+          results.push({ guid, status: "error", error: "Duplicate guid in payload, skipped" });
+          continue;
+        }
+
+        processedGuids.add(guid);
+        totalProcessed++;
+
         try {
           const dbCustomer = normalizeCustomer(apiCustomer);
           await upsertCustomer(dbCustomer);
           successCount++;
-          results.push({ guid: apiCustomer.guid, status: "success" });
+          results.push({ guid, status: "success" });
         } catch (err) {
           const message = err instanceof Error ? err.message : "Unknown error";
           errorCount++;
-          results.push({ guid: apiCustomer.guid, status: "error", error: message });
+          results.push({ guid, status: "error", error: message });
         }
       }
-
-      totalProcessed += customers.length;
       page += 1;
 
       // Stop when we reached last page

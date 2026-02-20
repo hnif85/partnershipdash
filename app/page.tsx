@@ -579,6 +579,8 @@ export default function Dashboard() {
                   <br></br>
                   <p className="text-sm text-zinc-600 mt-1">
                     Last update transaksi: {formatDateTime(data?.timestamp)}
+                    <br></br>
+                    <br />
                     Apabila memerlukan data terbaru, silakan klik tombol "Sync User" atau "Sync Transaksi".
                   </p>
                 </div>

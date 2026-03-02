@@ -72,6 +72,11 @@ type DashboardData = {
     users_with_subscriptions: number;
     expired_users: number;
   };
+  churnStats?: {
+    active_users: number;
+    idle_users: number;
+    passive_users: number;
+  };
   dailyActivity: Array<{
     date: string;
     credit_transactions: number;
@@ -91,6 +96,9 @@ type ReferralPartnersData = Array<{
   code: string;
 }>;
 
+
+const formatNumber = (value?: number) =>
+  typeof value === "number" ? value.toLocaleString("id-ID") : "-";
 
 
 const formatDate = (value?: string | null) => {
@@ -166,17 +174,6 @@ export default function CustomersPage() {
   const [syncAllPurchaseCount, setSyncAllPurchaseCount] = useState<number>(0);
   const fetchIdRef = useRef(0);
 
-  // Export modal state
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [exportStartDate, setExportStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate() - 30); // 30 days ago
-    return date.toISOString().split('T')[0];
-  });
-  const [exportEndDate, setExportEndDate] = useState(() => {
-    const date = new Date();
-    return date.toISOString().split('T')[0];
-  });
   const [exportLoading, setExportLoading] = useState(false);
 
   // Fetch dashboard data
@@ -277,7 +274,7 @@ export default function CustomersPage() {
     };
 
     loadCustomers();
-  }, [page, search, statusFilter, appFilter, referralPartnerFilter]);
+  }, [page, search, statusFilter, appFilter, referralPartnerFilter, churnFilter]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const pageSafe = Math.min(page, totalPages);
@@ -461,31 +458,34 @@ export default function CustomersPage() {
 
     try {
       const params = new URLSearchParams({
-        startDate: exportStartDate,
-        endDate: exportEndDate,
+        search,
+        statusFilter,
+        appFilter,
+        referral_partner: referralPartnerFilter,
+        churnFilter,
       });
 
-      const res = await fetch(`/api/export-credit-transactions?${params}`);
+      const res = await fetch(`/api/cms-customers/export?${params.toString()}`, {
+        cache: "no-store",
+      });
 
-      if (res.ok) {
-        // Create download link
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `credit_transactions_${exportStartDate}_to_${exportEndDate}.xlsx`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-
-        setShowExportModal(false);
-      } else {
+      if (!res.ok) {
         const error = await res.text();
-        alert(`Export gagal: ${error}`);
+        throw new Error(error || `Export gagal (status ${res.status})`);
       }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const timestamp = new Date().toISOString().split("T")[0];
+      link.download = `customers_filtered_${timestamp}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-      alert(`Error: ${error instanceof Error ? error.message : 'Network error'}`);
+      alert(`Export gagal: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
       setExportLoading(false);
     }
@@ -506,13 +506,23 @@ export default function CustomersPage() {
             <div className="flex flex-col items-end gap-2">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => setShowExportModal(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                  onClick={exportExcel}
+                  disabled={exportLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-blue-600 bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <span>Export Excel</span>
+                  {exportLoading ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      <span>Mengekspor...</span>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span>Export Excel</span>
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={syncCustomers}
@@ -596,45 +606,76 @@ export default function CustomersPage() {
           <>
                       
 
-            {/* Customer Overview Cards */}
-            <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="rounded-xl border border-zinc-200 bg-white px-4 py-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase text-zinc-500">Customers</p>
-                <p className="mt-2 text-2xl font-bold text-[#0f172a]">{totalCount}</p>
-                
-                <p className="text-xs text-zinc-500 mt-1">
-                  {(dashboardData?.creditStats?.users_with_transactions ?? 0).toLocaleString("id-ID")} Customer yang aktif (pernah transaksi atau punya subscription)
-                </p>
-                <p className="text-xs text-zinc-500 mt-1">
-                  {(dashboardData?.customerStats?.total_customers ?? 0).toLocaleString("id-ID")} Total customer terdaftar
-                </p>
-              </div>
+            {/* Customer Overview Cards - single card with total + active/idle/pasif */}
+            <section className="grid gap-4">
+              <div className="rounded-xl border border-zinc-200 bg-white px-5 py-5 shadow-sm">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-zinc-500">Jumlah Customer</p>
+                    <p className="text-3xl font-bold text-[#0f172a]">
+                      {formatNumber(dashboardData?.customerStats?.total_customers ?? totalCount)}
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Total customer terdaftar di sistem.
+                    </p>
+                  </div>
+                  <div className="text-xs text-zinc-500">
+                    Last update: {formatDate(dashboardData?.timestamp)}
+                  </div>
+                </div>
 
-            
-              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase text-red-600">Expired Users</p>
-                <p className="mt-2 text-2xl font-bold text-red-800">
-                  {dashboardData?.customerStats?.total_customers ?
-                    Math.round(((dashboardData.customerStats.expired_users || 0) / dashboardData.customerStats.total_customers) * 100) : 0}%
-                </p>
-                <p className="text-xs text-red-600 mt-1">
-                  {(dashboardData?.customerStats?.expired_users ?? 0).toLocaleString("id-ID")} dari {(dashboardData?.customerStats?.total_customers ?? 0).toLocaleString("id-ID")} total users
-                </p>
-              </div>
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                  {(() => {
+                    const total = dashboardData?.customerStats?.total_customers ?? 0;
+                    const active =
+                      dashboardData?.churnStats?.active_users ?? dashboardData?.customerStats?.active_customers ?? 0;
+                    const idle = dashboardData?.churnStats?.idle_users ?? 0;
+                    const passive =
+                      dashboardData?.churnStats?.passive_users ?? dashboardData?.customerStats?.expired_users ?? 0;
+                    const percent = (value: number) =>
+                      total > 0 ? ((value / total) * 100).toLocaleString("id-ID", { maximumFractionDigits: 1 }) : "0";
 
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase text-emerald-600">Active User Ratio</p>
-                <p className="mt-2 text-2xl font-bold text-emerald-800">
-                  {dashboardData?.customerStats?.total_customers ?
-                    Math.round(((dashboardData.customerStats.active_customers || 0) / dashboardData.customerStats.total_customers) * 100) : 0}%
-                </p>
-                <p className="text-xs text-emerald-600 mt-1">
-                  {(dashboardData?.customerStats?.active_customers ?? 0).toLocaleString("id-ID")} dari {(dashboardData?.customerStats?.total_customers ?? 0).toLocaleString("id-ID")}
-                </p>
-              </div>
+                    const blocks = [
+                      {
+                        label: "Aktif (≤7 hari)",
+                        value: active,
+                        percent: percent(active),
+                        color: "text-emerald-700",
+                        border: "border-emerald-200 bg-emerald-50",
+                      },
+                      {
+                        label: "Idle (7-30 hari)",
+                        value: idle,
+                        percent: percent(idle),
+                        color: "text-amber-700",
+                        border: "border-amber-200 bg-amber-50",
+                      },
+                      {
+                        label: "Pasif (>30 hari)",
+                        value: passive,
+                        percent: percent(passive),
+                        color: "text-red-700",
+                        border: "border-red-200 bg-red-50",
+                      },
+                    ];
 
-              
-              
+                    return blocks.map((item) => (
+                      <div
+                        key={item.label}
+                        className={`rounded-lg border px-4 py-3 ${item.border}`}
+                      >
+                        <p className={`text-xs font-semibold uppercase ${item.color}`}>{item.label}</p>
+                        <p className={`mt-2 text-2xl font-bold ${item.color}`}>
+                          {item.percent}%
+                        </p>
+                        <p className="text-xs text-zinc-600 mt-1">
+                          {formatNumber(item.value)} dari {formatNumber(total)} customer
+                        </p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
             </section>
 
 
@@ -941,88 +982,6 @@ export default function CustomersPage() {
           </>
         )}
 
-        {/* Export Modal */}
-        {showExportModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-              <div className="px-6 py-4 border-b border-zinc-200">
-                <h3 className="text-lg font-semibold text-[#0f172a]">Export Credit Transactions</h3>
-                <p className="text-sm text-zinc-600 mt-1">
-                  Pilih rentang tanggal untuk export data transaksi kredit ke Excel
-                </p>
-              </div>
-
-              <div className="px-6 py-4 space-y-4">
-                <div className="grid gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1">
-                      Tanggal Mulai
-                    </label>
-                    <input
-                      type="date"
-                      value={exportStartDate}
-                      onChange={(e) => setExportStartDate(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1">
-                      Tanggal Akhir
-                    </label>
-                    <input
-                      type="date"
-                      value={exportEndDate}
-                      onChange={(e) => setExportEndDate(e.target.value)}
-                      className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
-                    />
-                  </div>
-                </div>
-
-                <div className="text-xs text-zinc-500 bg-zinc-50 p-3 rounded">
-                  <p className="font-medium mb-1">Data yang akan diexport:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    <li>Nama User (dari database customer)</li>
-                    <li>Email User</li>
-                    <li>Nama Aplikasi (dari master data produk)</li>
-                    <li>Tipe (Credit/Debit)</li>
-                    <li>Jumlah</li>
-                    <li>Tanggal</li>
-                  </ul>
-                </div>
-              </div>
-
-              <div className="px-6 py-4 border-t border-zinc-200 flex justify-end gap-3">
-                <button
-                  onClick={() => setShowExportModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-zinc-700 bg-zinc-100 border border-zinc-300 rounded-lg hover:bg-zinc-200 transition"
-                  disabled={exportLoading}
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={exportExcel}
-                  disabled={exportLoading}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                >
-                  {exportLoading ? (
-                    <>
-                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                      <span>Exporting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      <span>Export Excel</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </main>
   );

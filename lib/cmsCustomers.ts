@@ -330,11 +330,17 @@ export async function getCmsCustomers(
   await addMailinatorToExcluded(mailinatorEmails);
 
   const mapped = result.rows.map(mapCustomer);
-  // Dedupe by guid, fallback to email then phone to avoid duplicate rows downstream
+  // Dedupe primarily by email (case-insensitive), then guid, then phone
   const uniq = new Map<string, CmsCustomer>();
   mapped.forEach((c, idx) => {
-    const key = c.guid || c.email || c.phone_number || `idx-${idx}`;
-    if (!uniq.has(key)) uniq.set(key, c);
+    const emailKey = c.email ? c.email.toLowerCase() : null;
+    const guidKey = c.guid || null;
+    const phoneKey = c.phone_number || null;
+
+    const key = emailKey || guidKey || phoneKey || `idx-${idx}`;
+    if (!uniq.has(key)) {
+      uniq.set(key, c);
+    }
   });
 
   return Array.from(uniq.values());

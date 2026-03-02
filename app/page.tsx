@@ -79,6 +79,7 @@ const formatDate = (value?: string | null) => {
 type SyncState = {
   status: "idle" | "loading" | "success" | "error";
   message: string | null;
+  updatedAt?: string;
 };
 
 type SortKey =
@@ -213,6 +214,37 @@ export default function Dashboard() {
   const [usageCreditMode, setUsageCreditMode] = useState<"daily" | "cumulative">("daily");
   const [usageUserMode, setUsageUserMode] = useState<"daily" | "cumulative">("daily");
 
+  const persistSyncState = (
+    key: "user" | "transaction" | "usage",
+    state: SyncState
+  ) => {
+    try {
+      localStorage.setItem(`sync_state_${key}`, JSON.stringify(state));
+    } catch (err) {
+      console.warn("Failed to persist sync state", err);
+    }
+  };
+
+  const loadPersistedSyncStates = useCallback(() => {
+    const keys: Array<["user" | "transaction" | "usage", Dispatch<SetStateAction<SyncState>>]> = [
+      ["user", setSyncUserState],
+      ["transaction", setSyncTransactionState],
+      ["usage", setSyncUsageState],
+    ];
+
+    keys.forEach(([key, setter]) => {
+      try {
+        const stored = localStorage.getItem(`sync_state_${key}`);
+        if (stored) {
+          const parsed = JSON.parse(stored) as SyncState;
+          setter({ status: parsed.status, message: parsed.message, updatedAt: parsed.updatedAt });
+        }
+      } catch (err) {
+        console.warn(`Failed to read persisted sync state for ${key}`, err);
+      }
+    });
+  }, []);
+
   const fetchDashboard = useCallback(async () => {
     try {
       const res = await fetch("/api/dashboard");
@@ -225,13 +257,15 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    loadPersistedSyncStates();
+
     const load = async () => {
       setLoading(true);
       await fetchDashboard();
       setLoading(false);
     };
     load();
-  }, [fetchDashboard]);
+  }, [fetchDashboard, loadPersistedSyncStates]);
 
   const runSync = async (
     endpoint: string,
@@ -248,14 +282,53 @@ export default function Dashboard() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
-        setState({ status: "success", message: formatSuccess(data) });
+        const nextState: SyncState = {
+          status: "success",
+          message: formatSuccess(data),
+          updatedAt: new Date().toISOString(),
+        };
+        setState(nextState);
+        persistSyncState(
+          endpoint.includes("customers")
+            ? "user"
+            : endpoint.includes("transactions")
+              ? "transaction"
+              : "usage",
+          nextState
+        );
         await fetchDashboard();
       } else {
-        setState({ status: "error", message: data?.error || "Sync gagal" });
+        const nextState: SyncState = {
+          status: "error",
+          message: data?.error || "Sync gagal",
+          updatedAt: new Date().toISOString(),
+        };
+        setState(nextState);
+        persistSyncState(
+          endpoint.includes("customers")
+            ? "user"
+            : endpoint.includes("transactions")
+              ? "transaction"
+              : "usage",
+          nextState
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Network error";
-      setState({ status: "error", message });
+      const nextState: SyncState = {
+        status: "error",
+        message,
+        updatedAt: new Date().toISOString(),
+      };
+      setState(nextState);
+      persistSyncState(
+        endpoint.includes("customers")
+          ? "user"
+          : endpoint.includes("transactions")
+            ? "transaction"
+            : "usage",
+        nextState
+      );
     }
   };
 
@@ -264,7 +337,7 @@ export default function Dashboard() {
     runSync(
       "/api/sync-customers/v2",
       setSyncUserState,
-      (data) => `Sync customer berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`,
+      (data) => `${data.success_count ?? data.total_processed ?? 0} customer baru`,
       {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ incremental: true }),
@@ -275,7 +348,7 @@ export default function Dashboard() {
     runSync(
       "/api/sync-transactions",
       setSyncTransactionState,
-      (data) => `Sync transaksi berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`,
+      (data) => `${data.success_count ?? data.total_processed ?? 0} transaksi baru`,
       {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}), // sesuai tombol "Sinkron Semua" di /sales
@@ -286,7 +359,7 @@ export default function Dashboard() {
     runSync(
       "/api/sync-credit-manager-transactions",
       setSyncUsageState,
-      (data) => `Sync usage berhasil (${data.success_count ?? 0} sukses, ${data.error_count ?? 0} gagal, total ${data.total_processed ?? 0})`
+      (data) => `${data.success_count ?? data.total_processed ?? 0} usage baru`
     );
 
   const purchaseChartData: MiniBarDatum[] = useMemo(() => {
@@ -648,23 +721,37 @@ export default function Dashboard() {
                     <div className="mt-3 space-y-1 text-xs text-zinc-600">
                       {syncUserState.message && (
                         <div className={syncUserState.status === "error" ? "text-red-600" : "text-[#1f3c88]"}>
-                          User: {syncUserState.message}
+                          <span>User: {syncUserState.message}</span>
+                          {syncUserState.updatedAt ? (
+                            <span className="block text-[11px] text-zinc-400">
+                              Terakhir: {formatDateTime(syncUserState.updatedAt)}
+                            </span>
+                          ) : null}
                         </div>
                       )}
                       {syncTransactionState.message && (
                         <div className={syncTransactionState.status === "error" ? "text-red-600" : "text-[#0f5132]"}>
-                          Transaksi: {syncTransactionState.message}
+                          <span>Transaksi: {syncTransactionState.message}</span>
+                          {syncTransactionState.updatedAt ? (
+                            <span className="block text-[11px] text-zinc-400">
+                              Terakhir: {formatDateTime(syncTransactionState.updatedAt)}
+                            </span>
+                          ) : null}
                         </div>
                       )}
                       {syncUsageState.message && (
                         <div className={syncUsageState.status === "error" ? "text-red-600" : "text-[#d97706]"}>
-                          Usage: {syncUsageState.message}
+                          <span>Usage: {syncUsageState.message}</span>
+                          {syncUsageState.updatedAt ? (
+                            <span className="block text-[11px] text-zinc-400">
+                              Terakhir: {formatDateTime(syncUsageState.updatedAt)}
+                            </span>
+                          ) : null}
                         </div>
                       )}
                     </div>
                   </div>
                 </div>
-                
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">

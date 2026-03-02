@@ -5,6 +5,8 @@ export type Activity = {
   meta: string;
   target: number;
   achieved: number;
+  // Pertambahan pencapaian dibandingkan minggu lalu (dalam jumlah trx)
+  weekDelta: number;
   highlight?: boolean;
 };
 
@@ -17,6 +19,7 @@ export const activities: Activity[] = [
     meta: "20 kelas x 50 peserta x 1 trx",
     target: 5000,
     achieved: 0,
+    weekDelta: 0,
   },
   {
     slug: "webinar-berbayar",
@@ -25,6 +28,7 @@ export const activities: Activity[] = [
     meta: "8 webinar x 40 peserta x 2 trx",
     target: 1000,
     achieved: 23,
+    weekDelta: 0,
   },
   {
     slug: "impact-plus",
@@ -32,7 +36,8 @@ export const activities: Activity[] = [
     description: "Program CSR/kemitraan untuk adopsi teknologi UMKM skala besar.",
     meta: "5 perusahaan x 12.000 trx",
     target: 50000,
-    achieved: 310,
+    achieved: 312,
+    weekDelta: 2,
     highlight: true,
   },
   {
@@ -41,7 +46,8 @@ export const activities: Activity[] = [
     description: "Pembelian langsung dan reaktivasi via kanal digital.",
     meta: "1.000 pembelian x 1 trx",
     target: 20000,
-    achieved: 13,
+    achieved: 16,
+    weekDelta: 3,
   },
   {
     slug: "gov-non-gov-offline-activation",
@@ -50,6 +56,7 @@ export const activities: Activity[] = [
     meta: "10 event x 100 UMKM x 1 trx",
     target: 13000,
     achieved: 31,
+    weekDelta: 0,
   },
   {
     slug: "on-ground-activation",
@@ -58,6 +65,7 @@ export const activities: Activity[] = [
     meta: "4 kota x 500 UMKM x 5 trx",
     target: 11000,
     achieved: 21,
+    weekDelta: 0,
   },
 ];
 

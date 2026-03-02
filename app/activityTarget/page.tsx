@@ -78,6 +78,11 @@ export default function ActivityTargets() {
         <section className="grid gap-4 md:grid-cols-2">
           {activities.map((activity) => {
             const progress = computeProgress(activity.achieved, activity.target);
+            const change = activity.weekDelta;
+            const changeLabel =
+              change >= 0
+                ? `+${formatNumber(change)}`
+                : `-${formatNumber(Math.abs(change))}`;
             return (
               <Link
                 key={activity.title}
@@ -119,6 +124,15 @@ export default function ActivityTargets() {
                       style={{ width: `${Math.min(progress, 100)}%` }}
                     />
                   </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between rounded-lg border border-zinc-200 bg-[#f8fafc] px-3 py-2 text-xs font-semibold">
+                  <span className="uppercase tracking-wide text-zinc-500">Penambahan vs minggu lalu</span>
+                  <span
+                    className={`${change >= 0 ? "text-[#0f5132]" : "text-[#b91c1c]"}`}
+                  >
+                    {changeLabel} trx
+                  </span>
                 </div>
               </Link>
             );

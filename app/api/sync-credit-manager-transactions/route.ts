@@ -62,9 +62,8 @@ async function fetchTransactionsFromAPI(startDate: string, endDate: string): Pro
 
     const data = await response.json();
 
-    // Assuming the API returns data in a structure like { data: TransactionFromAPI[] }
-    // Adjust this based on the actual API response structure
-    const transactions = data.data || data.transactions || data || [];
+    // API returns { success, message, data: { data: TransactionFromAPI[], page, limit, total_count } }
+    const transactions = data?.data?.data ?? data?.data ?? data?.transactions ?? [];
 
     if (!Array.isArray(transactions) || transactions.length === 0) {
       break; // No more data

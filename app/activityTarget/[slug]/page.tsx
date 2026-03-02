@@ -1,7 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPartnerActivationMatrix, getPartnerCRMData, type PartnerActivationRow, type PartnerCRMRow } from "@/lib/partnerActivations";
+import {
+  getPartnerActivationMatrix,
+  getPartnerCRMData,
+  type PartnerActivationRow,
+  type PartnerCRMRow,
+} from "@/lib/partnerActivations";
 import { getGovNonGovStats } from "@/lib/activityStats";
+import { getActivityCustomersFromDB, type ActivityCustomer } from "@/lib/activityTargets";
 import { activities, computeProgress, formatNumber } from "../data";
 import PartnerTable from "./partner-table";
 
@@ -65,6 +71,8 @@ export default async function ActivityDetail({ params }: { params: Promise<Param
   const nonGovPartners = partnerMatrix.filter((item) => !item.isGov);
   const progress = computeProgress(achieved, target);
   const remaining = Math.max(target - achieved, 0);
+  const activityCustomers: ActivityCustomer[] =
+    activity.slug === "digital-activation" ? await getActivityCustomersFromDB(activity.slug) : [];
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
@@ -158,6 +166,68 @@ export default async function ActivityDetail({ params }: { params: Promise<Param
             </div>
           </div>
         </section>
+
+        {activity.slug === "digital-activation" && (
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-1 border-b border-zinc-200 pb-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#1f3c88]">
+                Digital Activation Users
+              </p>
+              <h2 className="text-lg font-semibold text-[#0f172a]">Daftar User per Channel</h2>
+              <p className="text-sm text-zinc-600">
+                Menampilkan seluruh user yang masuk melalui channel Digital Activation (termasuk fallback referral).
+              </p>
+            </div>
+
+            <div className="mt-4 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 text-left text-xs font-semibold uppercase text-zinc-500">
+                    <th className="py-2 pr-3">Nama</th>
+                    <th className="py-2 pr-3">Email</th>
+                    <th className="py-2 pr-3">Phone</th>
+                    <th className="py-2 pr-3">Kota</th>
+                    <th className="py-2 pr-3">Referral</th>
+                    <th className="py-2 pr-3">Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activityCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-4 text-center text-zinc-600">
+                        Belum ada user untuk channel ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    activityCustomers.map((user) => (
+                      <tr key={user.guid || `${user.email}-${user.phone_number}`} className="border-b border-zinc-100 last:border-0">
+                        <td className="py-2 pr-3 font-semibold text-[#0f172a]">
+                          {user.full_name || "Unknown User"}
+                        </td>
+                        <td className="py-2 pr-3 text-zinc-700">{user.email || "-"}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{user.phone_number || "-"}</td>
+                        <td className="py-2 pr-3 text-zinc-700">{user.city || user.country || "-"}</td>
+                        <td className="py-2 pr-3 text-zinc-700">
+                          {user.referral_partner || user.referal_code || "N/A"}
+                        </td>
+                        <td className="py-2 pr-3 text-zinc-700">
+                          {user.created_at
+                            ? new Date(user.created_at).toLocaleDateString("id-ID", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "-"}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
+
         {/* CRM Partner Table */}
         {showPartnerMatrix && partnerCRMData.length > 0 && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

@@ -46,7 +46,7 @@ export const activities: Activity[] = [
     description: "Pembelian langsung dan reaktivasi via kanal digital.",
     meta: "1.000 pembelian x 1 trx",
     target: 20000,
-    achieved: 16,
+    achieved: 31,
     weekDelta: 3,
   },
   {

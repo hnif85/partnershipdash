@@ -4,6 +4,7 @@ import {
   computeProgress,
   formatNumber,
   otherActivityCard,
+  type ActivityCard,
 } from "./data";
 
 export default function ActivityTargets() {
@@ -12,7 +13,7 @@ export default function ActivityTargets() {
   const totalProgress = computeProgress(totalAchieved, totalTarget);
   const today = new Date();
   const formattedDate = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
-  const activityCards = [
+  const activityCards: ActivityCard[] = [
     ...activities.map((item) => ({ ...item, hasTarget: item.hasTarget ?? true, link: item.link ?? true })),
     otherActivityCard,
   ];
@@ -192,7 +193,6 @@ export default function ActivityTargets() {
     </main>
   );
 }
-
 
 
 

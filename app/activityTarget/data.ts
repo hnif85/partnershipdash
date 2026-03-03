@@ -1,5 +1,7 @@
+import { ActivitySlug } from "@/lib/activityMapping";
+
 export type Activity = {
-  slug: string;
+  slug: ActivitySlug;
   title: string;
   description: string;
   meta: string;
@@ -12,6 +14,21 @@ export type Activity = {
   hasTarget?: boolean;
   link?: boolean;
 };
+
+type OtherActivity = {
+  slug: "other";
+  title: string;
+  description: string;
+  meta: string;
+  target: number;
+  achieved: number;
+  weekDelta: number;
+  highlight?: boolean;
+  hasTarget?: boolean;
+  link?: boolean;
+};
+
+export type ActivityCard = Activity | OtherActivity;
 
 // Targets dipertahankan; hanya pencapaian di-update sesuai data terbaru pengguna.
 export const activities: Activity[] = [
@@ -72,7 +89,7 @@ export const activities: Activity[] = [
   },
 ];
 
-export const otherActivityCard: Activity = {
+export const otherActivityCard: OtherActivity = {
   slug: "other",
   title: "Other / Misc",
   description: "Aktivitas lain yang belum diberi target khusus, namun tetap dipantau.",

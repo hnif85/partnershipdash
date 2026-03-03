@@ -110,6 +110,8 @@ export async function getCmsCustomers(
   statusFilter: string = 'all',
   churnFilter: string = 'all'
 ): Promise<CmsCustomer[]> {
+  const startQueryTime = Date.now();
+  
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not configured");
   }
@@ -210,8 +212,43 @@ export async function getCmsCustomers(
   const whereClauseBase = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
   const demoFilter = whereConditions.length > 0 ? ' AND dee.email IS NULL' : ' WHERE dee.email IS NULL';
 
-  // Optimized query using JOIN instead of subqueries for better performance
+  // Rewritten to constrain heavy credit_manager_transactions aggregation to the paginated customer set
+  // so we don't scan the whole table on every request.
   const query = `
+    WITH filtered AS (
+      SELECT c.*
+      FROM cms_customers c
+      LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+      ${whereClauseBase}${demoFilter}
+      ORDER BY c.created_at DESC
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    ),
+    credit_totals AS (
+      SELECT
+        cmt.user_id,
+        SUM(CASE WHEN LOWER(cmt.type) = 'credit' THEN cmt.amount ELSE 0 END) AS credit_added,
+        SUM(CASE WHEN LOWER(cmt.type) = 'debit' THEN cmt.amount ELSE 0 END) AS credit_used
+      FROM credit_manager_transactions cmt
+      WHERE cmt.user_id IN (SELECT guid::uuid FROM filtered)
+      GROUP BY cmt.user_id
+    ),
+    debit_stats AS (
+      SELECT
+        cmt.user_id,
+        MAX(cmt.created_at) FILTER (WHERE LOWER(cmt.type) = 'debit') AS last_debit_at
+      FROM credit_manager_transactions cmt
+      WHERE cmt.user_id IN (SELECT guid::uuid FROM filtered)
+      GROUP BY cmt.user_id
+    ),
+    app_totals AS (
+      SELECT
+        cmt.user_id,
+        array_agg(DISTINCT cmt.product_name) AS applications
+      FROM credit_manager_transactions cmt
+      WHERE cmt.product_name IS NOT NULL
+        AND cmt.user_id IN (SELECT guid::uuid FROM filtered)
+      GROUP BY cmt.user_id
+    )
     SELECT c.guid,
            c.username,
            c.full_name,
@@ -258,30 +295,10 @@ export async function getCmsCustomers(
            COALESCE(app_totals.applications, ARRAY[]::text[]) AS applications,
            NULL AS app_credits,
            COALESCE(training_data.training_data, '[]'::json) AS training_data
-    FROM cms_customers c
-    LEFT JOIN (
-      SELECT
-        cmt.user_id,
-        SUM(CASE WHEN LOWER(cmt.type) = 'credit' THEN cmt.amount ELSE 0 END) AS credit_added,
-        SUM(CASE WHEN LOWER(cmt.type) = 'debit' THEN cmt.amount ELSE 0 END) AS credit_used
-      FROM credit_manager_transactions cmt
-      GROUP BY cmt.user_id
-    ) credit_totals ON credit_totals.user_id = c.guid::uuid
-    LEFT JOIN (
-      SELECT
-        cmt.user_id,
-        MAX(cmt.created_at) FILTER (WHERE LOWER(cmt.type) = 'debit') AS last_debit_at
-      FROM credit_manager_transactions cmt
-      GROUP BY cmt.user_id
-    ) debit_stats ON debit_stats.user_id = c.guid::uuid
-    LEFT JOIN (
-      SELECT
-        cmt.user_id,
-        array_agg(DISTINCT cmt.product_name) AS applications
-      FROM credit_manager_transactions cmt
-      WHERE cmt.product_name IS NOT NULL
-      GROUP BY cmt.user_id
-    ) app_totals ON app_totals.user_id = c.guid::uuid
+    FROM filtered c
+    LEFT JOIN credit_totals ON credit_totals.user_id = c.guid::uuid
+    LEFT JOIN debit_stats ON debit_stats.user_id = c.guid::uuid
+    LEFT JOIN app_totals ON app_totals.user_id = c.guid::uuid
     LEFT JOIN LATERAL (
       SELECT json_agg(
         jsonb_build_object(
@@ -311,15 +328,13 @@ export async function getCmsCustomers(
       FROM profile p
       WHERE LOWER(p.customer_guid) = LOWER(c.guid::text)
     ) training_data ON TRUE
-    LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
-    ${whereClauseBase}${demoFilter}
-    ORDER BY c.created_at DESC
-    LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;
 
   params.push(limit, offset);
 
   const result = await pool.query<CmsCustomerRow>(query, params);
+  const queryTime = Date.now() - startQueryTime;
+  console.log(`[getCmsCustomers] Query executed in ${queryTime}ms, returned ${result.rows.length} rows`);
 
   // Add mailinator emails to excluded list
   const mailinatorEmails = result.rows
@@ -347,6 +362,8 @@ export async function getCmsCustomers(
 }
 
 export async function getCmsCustomersCount(search: string = '', referralPartnerFilter: string = 'all', appFilter: string = 'all', statusFilter: string = 'all', churnFilter: string = 'all'): Promise<number> {
+  const startTime = Date.now();
+  
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not configured");
   }
@@ -453,6 +470,8 @@ export async function getCmsCustomersCount(search: string = '', referralPartnerF
   `;
 
   const result = await pool.query(countQuery, params);
+  const queryTime = Date.now() - startTime;
+  console.log(`[getCmsCustomersCount] Query executed in ${queryTime}ms, total count: ${result.rows[0].count}`);
   return parseInt(result.rows[0].count);
 }
 

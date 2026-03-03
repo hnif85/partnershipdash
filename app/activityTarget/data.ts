@@ -8,6 +8,9 @@ export type Activity = {
   // Pertambahan pencapaian dibandingkan minggu lalu (dalam jumlah trx)
   weekDelta: number;
   highlight?: boolean;
+  // Optional flags for cards that don't follow the standard target flow
+  hasTarget?: boolean;
+  link?: boolean;
 };
 
 // Targets dipertahankan; hanya pencapaian di-update sesuai data terbaru pengguna.
@@ -68,6 +71,19 @@ export const activities: Activity[] = [
     weekDelta: 0,
   },
 ];
+
+export const otherActivityCard: Activity = {
+  slug: "other",
+  title: "Other / Misc",
+  description: "Aktivitas lain yang belum diberi target khusus, namun tetap dipantau.",
+  meta: "Transaksi yang tidak masuk kategori lain",
+  target: 0,
+  achieved: 0,
+  weekDelta: 0,
+  highlight: false,
+  hasTarget: false,
+  link: false,
+};
 
 export const formatNumber = (value: number) => value.toLocaleString("id-ID");
 

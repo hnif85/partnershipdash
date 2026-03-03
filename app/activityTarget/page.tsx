@@ -3,6 +3,7 @@ import {
   activities,
   computeProgress,
   formatNumber,
+  otherActivityCard,
 } from "./data";
 
 export default function ActivityTargets() {
@@ -11,6 +12,10 @@ export default function ActivityTargets() {
   const totalProgress = computeProgress(totalAchieved, totalTarget);
   const today = new Date();
   const formattedDate = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+  const activityCards = [
+    ...activities.map((item) => ({ ...item, hasTarget: item.hasTarget ?? true, link: item.link ?? true })),
+    otherActivityCard,
+  ];
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
@@ -76,23 +81,23 @@ export default function ActivityTargets() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-2">
-          {activities.map((activity) => {
-            const progress = computeProgress(activity.achieved, activity.target);
-            const change = activity.weekDelta;
+          {activityCards.map((activity) => {
+            const hasTarget = activity.hasTarget !== false;
+            const isLink = activity.link !== false;
+            const progress = hasTarget ? computeProgress(activity.achieved, activity.target) : null;
+            const change = activity.weekDelta ?? 0;
             const changeLabel =
               change >= 0
                 ? `+${formatNumber(change)}`
                 : `-${formatNumber(Math.abs(change))}`;
-            return (
-              <Link
-                key={activity.title}
-                href={`/activityTarget/${activity.slug}`}
-                className={`flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                  activity.highlight
-                    ? "border-[#1f3c88] shadow-[0_0_0_2px_rgba(31,60,136,0.12)]"
-                    : "border-zinc-200"
-                }`}
-              >
+            const cardClass = `flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+              activity.highlight
+                ? "border-[#1f3c88] shadow-[0_0_0_2px_rgba(31,60,136,0.12)]"
+                : "border-zinc-200"
+            }`;
+
+            const content = (
+              <>
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-2">
                     <div className="text-lg font-semibold text-[#0f172a]">{activity.title}</div>
@@ -101,40 +106,76 @@ export default function ActivityTargets() {
                   <div className="text-right text-xs font-medium text-zinc-500">{activity.meta}</div>
                 </div>
 
-                <div className="mt-6 flex items-end justify-between">
-                  <div className="space-y-1 text-right">
-                    <p className="text-sm font-semibold text-[#0f5132]">Pencapaian</p>
-                    <p className="text-3xl font-bold text-[#0f172a] leading-none">
-                      {formatNumber(activity.achieved)} trx{" "}
-                      <span className="text-sm font-semibold text-zinc-500">({progress}%)</span>
-                    </p>
-                  </div>
-                  <div className="space-y-1 text-right">
-                    <p className="text-xs font-semibold uppercase text-zinc-500 tracking-wide">trx target</p>
-                    <p className="text-lg font-semibold text-[#0f172a] leading-none">
-                      {formatNumber(activity.target)}
-                    </p>
-                  </div>
-                </div>
+                {hasTarget ? (
+                  <>
+                    <div className="mt-6 flex items-end justify-between">
+                      <div className="space-y-1 text-right">
+                        <p className="text-sm font-semibold text-[#0f5132]">Pencapaian</p>
+                        <p className="text-3xl font-bold text-[#0f172a] leading-none">
+                          {formatNumber(activity.achieved)} trx{" "}
+                          <span className="text-sm font-semibold text-zinc-500">({progress}%)</span>
+                        </p>
+                      </div>
+                      <div className="space-y-1 text-right">
+                        <p className="text-xs font-semibold uppercase text-zinc-500 tracking-wide">trx target</p>
+                        <p className="text-lg font-semibold text-[#0f172a] leading-none">
+                          {formatNumber(activity.target)}
+                        </p>
+                      </div>
+                    </div>
 
-                <div className="mt-3">
-                  <div className="relative h-2 w-full rounded-full bg-zinc-200">
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full bg-[#1f3c88]"
-                      style={{ width: `${Math.min(progress, 100)}%` }}
-                    />
-                  </div>
-                </div>
+                    <div className="mt-3">
+                      <div className="relative h-2 w-full rounded-full bg-zinc-200">
+                        <div
+                          className="absolute inset-y-0 left-0 rounded-full bg-[#1f3c88]"
+                          style={{ width: `${Math.min(progress ?? 0, 100)}%` }}
+                        />
+                      </div>
+                    </div>
 
-                <div className="mt-4 flex items-center justify-between rounded-lg border border-zinc-200 bg-[#f8fafc] px-3 py-2 text-xs font-semibold">
-                  <span className="uppercase tracking-wide text-zinc-500">Penambahan vs minggu lalu</span>
-                  <span
-                    className={`${change >= 0 ? "text-[#0f5132]" : "text-[#b91c1c]"}`}
-                  >
-                    {changeLabel} trx
-                  </span>
-                </div>
+                    <div className="mt-4 flex items-center justify-between rounded-lg border border-zinc-200 bg-[#f8fafc] px-3 py-2 text-xs font-semibold">
+                      <span className="uppercase tracking-wide text-zinc-500">Penambahan vs minggu lalu</span>
+                      <span
+                        className={`${change >= 0 ? "text-[#0f5132]" : "text-[#b91c1c]"}`}
+                      >
+                        {changeLabel} trx
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-6 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-[#0f5132]">Pencapaian</p>
+                        <p className="text-3xl font-bold text-[#0f172a] leading-none">
+                          {formatNumber(activity.achieved)} trx
+                        </p>
+                        
+                      </div>
+                      <span className="rounded-full bg-[#eef2ff] px-3 py-1 text-xs font-semibold uppercase text-[#312e81]">
+                        No target
+                      </span>
+                    </div>
+                    <div className="rounded-lg border border-dashed border-zinc-200 bg-[#f8fafc] px-3 py-2 text-xs font-semibold text-zinc-600">
+                      Card ini untuk aktivitas lain
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+
+            return isLink ? (
+              <Link
+                key={activity.slug}
+                href={`/activityTarget/${activity.slug}`}
+                className={cardClass}
+              >
+                {content}
               </Link>
+            ) : (
+              <div key={activity.slug} className={cardClass}>
+                {content}
+              </div>
             );
           })}
         </section>

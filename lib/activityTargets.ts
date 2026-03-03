@@ -17,6 +17,7 @@ export type ActivityCustomer = {
   country: string;
   referal_code: string;
   referral_partner: string;
+  activity_slug?: ActivitySlug | null;
   created_at?: string;
 };
 
@@ -25,6 +26,7 @@ export async function getActivityAchievementsFromDB(): Promise<Record<ActivitySl
   const query = `
     SELECT
       COALESCE(rp.partner, 'N/A') AS referral_name,
+      rp.activity_slug AS activity_slug,
       COUNT(*) AS trx_count,
       COUNT(DISTINCT t.customer_guid::uuid) AS buyers,
       COALESCE(SUM(t.grand_total), 0) AS revenue_idr
@@ -40,6 +42,7 @@ export async function getActivityAchievementsFromDB(): Promise<Record<ActivitySl
 
   const { rows } = await pool.query<{
     referral_name: string | null;
+    activity_slug: ActivitySlug | null;
     trx_count: string | number;
     buyers: string | number;
     revenue_idr: string | number;
@@ -60,7 +63,7 @@ export async function getActivityAchievementsFromDB(): Promise<Record<ActivitySl
   };
 
   for (const row of rows) {
-    const slug = mapReferralToActivity(row.referral_name);
+    const slug = row.activity_slug || mapReferralToActivity(row.referral_name);
     base[slug].achieved += Number(row.trx_count) || 0;
     base[slug].uniqueBuyers += Number(row.buyers) || 0;
     base[slug].revenueIdr += Number(row.revenue_idr) || 0;
@@ -89,8 +92,10 @@ export async function getActivityCustomersFromDB(
         c.country,
         COALESCE(c.referal_code, '') AS referal_code,
         COALESCE(rp.partner, 'N/A') AS referral_partner,
+        rp.activity_slug,
         c.created_at,
         CASE
+          WHEN rp.activity_slug IS NOT NULL THEN rp.activity_slug
           WHEN rp.partner ~* '(smesco|rumah\\s+bumn|\\bcliff\\b|csr|corporate|bumn)' THEN 'impact-plus'
           WHEN rp.partner ~* '(kabupaten|pemkab|pemkot|pemprov|dinas|disdag|dinkop|oga\\s+sukabumi|trainer\\s+sukabumi)' THEN 'gov-non-gov-offline-activation'
           WHEN rp.partner ~* '(kompak\\s*tangsel|tangan\\s+diatas|rohmat\\s+digital|chapter|kota\\b|roadshow|offline|tracking\\s*iklan)' THEN 'on-ground-activation'
@@ -98,21 +103,23 @@ export async function getActivityCustomersFromDB(
           WHEN rp.partner ~* '(academy|bootcamp|pelatihan|kelas|training)' THEN 'mwx-academy'
           WHEN rp.partner ~* '^(n/a)$' OR rp.partner IS NULL OR rp.partner ~* '^$' OR rp.partner ~* 'ads' OR rp.partner ~* 'online' THEN 'digital-activation'
           ELSE 'digital-activation' -- fallback sama seperti mapReferralToActivity
-        END AS activity_slug
+        END AS activity_slug_resolved
       FROM cms_customers c
       LEFT JOIN referral_partners rp ON c.referal_code = rp.code
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
       WHERE dee.email IS NULL
     )
-    SELECT guid, full_name, email, phone_number, city, country, referal_code, referral_partner, created_at
+    SELECT guid, full_name, email, phone_number, city, country, referal_code, referral_partner, activity_slug, activity_slug_resolved, created_at
     FROM categorized
-    WHERE activity_slug = $1
+    WHERE COALESCE(activity_slug, activity_slug_resolved) = $1
     ORDER BY created_at DESC NULLS LAST
     LIMIT $2
   `;
 
   const values = [slug, limit];
-  const { rows } = await pool.query<ActivityCustomer>(query, values);
+  const { rows } = await pool.query<
+    ActivityCustomer & { activity_slug_resolved: ActivitySlug | null }
+  >(query, values);
 
   // Normalisasi teks agar konsisten di UI
   return rows.map((row) => ({
@@ -124,5 +131,6 @@ export async function getActivityCustomersFromDB(
     country: row.country || "",
     referal_code: row.referal_code || "",
     referral_partner: row.referral_partner || "N/A",
+    activity_slug: (row.activity_slug as ActivitySlug | null) || row.activity_slug_resolved || null,
   }));
 }

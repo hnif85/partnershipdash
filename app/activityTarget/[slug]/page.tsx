@@ -71,8 +71,7 @@ export default async function ActivityDetail({ params }: { params: Promise<Param
   const nonGovPartners = partnerMatrix.filter((item) => !item.isGov);
   const progress = computeProgress(achieved, target);
   const remaining = Math.max(target - achieved, 0);
-  const activityCustomers: ActivityCustomer[] =
-    activity.slug === "digital-activation" ? await getActivityCustomersFromDB(activity.slug) : [];
+  const activityCustomers: ActivityCustomer[] = await getActivityCustomersFromDB(activity.slug);
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
@@ -167,15 +166,15 @@ export default async function ActivityDetail({ params }: { params: Promise<Param
           </div>
         </section>
 
-        {activity.slug === "digital-activation" && (
+        {activityCustomers && (
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-1 border-b border-zinc-200 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#1f3c88]">
-                Digital Activation Users
+                {activity.title} Users
               </p>
               <h2 className="text-lg font-semibold text-[#0f172a]">Daftar User per Channel</h2>
               <p className="text-sm text-zinc-600">
-                Menampilkan seluruh user yang masuk melalui channel Digital Activation (termasuk fallback referral).
+                Menampilkan seluruh user yang masuk melalui channel ini berdasarkan mapping referral partner → activity.
               </p>
             </div>
 

@@ -76,12 +76,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (emails && typeof emails !== "string") {
+      return NextResponse.json(
+        { error: "Emails must be provided as a newline-separated string" },
+        { status: 400 }
+      );
+    }
+
     // Handle bulk insert
-    if (emails && emails.trim()) {
+    if (typeof emails === "string" && emails.trim()) {
       // Normalize and deduplicate incoming payload first to avoid duplicate key violations
-      const emailList: string[] = emails.split('\n')
-        .map((e) => e.trim())
-        .filter((e) => e.length > 0);
+      const emailList: string[] = (emails as string).split('\n')
+        .map((e: string) => e.trim())
+        .filter((e: string) => e.length > 0);
 
       if (emailList.length === 0) {
         return NextResponse.json(

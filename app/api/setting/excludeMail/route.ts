@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Handle bulk insert
     if (emails && emails.trim()) {
+      // Normalize and deduplicate incoming payload first to avoid duplicate key violations
       const emailList = emails.split('\n')
         .map((e: string) => e.trim())
         .filter((e: string) => e.length > 0);
@@ -89,36 +90,45 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Check for duplicates
-      const placeholders = emailList.map((_: string, i: number) => `$${i + 1}`).join(',');
-      const existingQuery = `SELECT email FROM public.demo_excluded_emails WHERE email IN (${placeholders})`;
-      const existing = await executeQuery<ExcludedEmail>(existingQuery, emailList);
+      const uniqueEmailList = Array.from(new Set(emailList));
+      const payloadDuplicates = emailList.filter((email: string, idx: number) => emailList.indexOf(email) !== idx);
 
-      // Filter out duplicate emails
+      // Check for duplicates already stored
+      const placeholders = uniqueEmailList.map((_: string, i: number) => `$${i + 1}`).join(',');
+      const existingQuery = `SELECT email FROM public.demo_excluded_emails WHERE email IN (${placeholders})`;
+      const existing = uniqueEmailList.length > 0
+        ? await executeQuery<ExcludedEmail>(existingQuery, uniqueEmailList)
+        : [];
+
       const existingEmails = new Set(existing.map((e: ExcludedEmail) => e.email));
-      const newEmails = emailList.filter((email: string) => !existingEmails.has(email));
+      const newEmails = uniqueEmailList.filter((email: string) => !existingEmails.has(email));
 
       let results: ExcludedEmail[] = [];
-      let duplicates: string[] = [];
 
       if (newEmails.length > 0) {
-        // Insert only non-duplicate emails
-        const values = newEmails.map((e: string) => `('${e.replace(/'/g, "''")}', '${reason.replace(/'/g, "''")}', true, NOW(), NOW())`).join(', ');
+        // Parameterized bulk insert with conflict protection
+        const valuesClause = newEmails
+          .map((_: string, i: number) => `($${i * 2 + 1}, $${i * 2 + 2}, true, NOW(), NOW())`)
+          .join(', ');
+        const insertParams = newEmails.flatMap((email: string) => [email, reason]);
         const insertQuery = `
           INSERT INTO public.demo_excluded_emails (email, reason, is_active, created_at, updated_at)
-          VALUES ${values}
+          VALUES ${valuesClause}
+          ON CONFLICT (email) DO NOTHING
           RETURNING email, reason, is_active, created_at, updated_at
         `;
 
-        results = await executeQuery<ExcludedEmail>(insertQuery);
+        results = await executeQuery<ExcludedEmail>(insertQuery, insertParams);
       }
 
-      // Get list of duplicate emails
-      duplicates = existing.map((e: ExcludedEmail) => e.email);
+      const duplicates = Array.from(new Set([
+        ...existingEmails,
+        ...payloadDuplicates
+      ]));
 
       return NextResponse.json({
         emails: results,
-        duplicates: duplicates,
+        duplicates,
         inserted: results.length,
         skipped: duplicates.length,
         total_processed: emailList.length,

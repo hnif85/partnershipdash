@@ -16,6 +16,18 @@ export async function GET(request: Request) {
     const referral = searchParams.get('referral') || '';
     const purchaseType = searchParams.get('purchase_type') || '';
 
+    const freeTrialPredicate = `
+      (
+        EXISTS (
+          SELECT 1 FROM transaction_details td2
+          WHERE td2.transaction_guid = t.guid
+            AND LOWER(td2.purchase_type_name) = 'free trial'
+        )
+        OR LOWER(t.payment_channel_name) LIKE 'free%'
+        OR COALESCE(t.grand_total, 0) = 0
+      )
+    `;
+
     const offset = (page - 1) * limit;
 
     // Check if this is a request for last transaction date
@@ -96,23 +108,9 @@ export async function GET(request: Request) {
 
     if (purchaseType) {
       if (purchaseType === 'trial') {
-        whereConditions.push(`(
-          EXISTS (
-            SELECT 1 FROM transaction_details td2
-            WHERE td2.transaction_guid = t.guid
-              AND LOWER(td2.purchase_type_name) = 'free trial'
-          )
-          OR COALESCE(t.grand_total, 0) = 0
-        )`);
+        whereConditions.push(freeTrialPredicate);
       } else if (purchaseType === 'paid') {
-        whereConditions.push(`(
-          NOT EXISTS (
-            SELECT 1 FROM transaction_details td2
-            WHERE td2.transaction_guid = t.guid
-              AND LOWER(td2.purchase_type_name) = 'free trial'
-          )
-          AND COALESCE(t.grand_total, 0) > 0
-        )`);
+        whereConditions.push(`NOT ${freeTrialPredicate} AND COALESCE(t.grand_total, 0) > 0`);
       }
     }
 

@@ -3,20 +3,25 @@ import { pool } from "@/lib/database";
 
 export async function GET(_request: NextRequest) {
   try {
+    const paidPredicate = `
+      LOWER(t.status) = 'finished'
+      AND COALESCE(t.grand_total, 0) > 0
+      AND NOT EXISTS (
+        SELECT 1 FROM transaction_details td
+        WHERE td.transaction_guid = t.guid
+          AND LOWER(td.purchase_type_name) = 'free trial'
+      )
+      AND LOWER(t.payment_channel_name) NOT LIKE 'free%'
+    `;
+
     // 1) Jumlah user yang membeli (transaksi finished & paid - bukan free trial)
     const usersPurchasedQuery = `
       SELECT COUNT(DISTINCT t.customer_guid::uuid) AS users_purchased
       FROM transactions t
       LEFT JOIN cms_customers c ON t.customer_guid::uuid = c.guid::uuid
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
-      WHERE LOWER(t.status) = 'finished'
+      WHERE ${paidPredicate}
         AND (dee.email IS NULL)
-        AND COALESCE(t.grand_total, 0) > 0
-        AND NOT EXISTS (
-          SELECT 1 FROM transaction_details td
-          WHERE td.transaction_guid = t.guid
-            AND LOWER(td.purchase_type_name) = 'free trial'
-        )
     `;
 
     // 1b) Jumlah transaksi (status finished, paid, exclude free trial & demo email)
@@ -25,14 +30,8 @@ export async function GET(_request: NextRequest) {
       FROM transactions t
       LEFT JOIN cms_customers c ON t.customer_guid::uuid = c.guid::uuid
       LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
-      WHERE LOWER(t.status) = 'finished'
+      WHERE ${paidPredicate}
         AND (dee.email IS NULL)
-        AND COALESCE(t.grand_total, 0) > 0
-        AND NOT EXISTS (
-          SELECT 1 FROM transaction_details td
-          WHERE td.transaction_guid = t.guid
-            AND LOWER(td.purchase_type_name) = 'free trial'
-        )
     `;
 
     // 2) Statistik referral per kode
@@ -47,22 +46,18 @@ export async function GET(_request: NextRequest) {
         FROM customers c
         LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
         WHERE dee.email IS NULL
+          AND c.referal_code IS NOT NULL
+          AND c.referal_code <> ''
       ),
-      transactions_idr AS (
+      transactions_paid AS (
         SELECT customer_guid::uuid AS customer_guid
         FROM transactions t
-        WHERE LOWER(t.status) = 'finished'
-          AND COALESCE(t.grand_total, 0) > 0
-          AND NOT EXISTS (
-            SELECT 1 FROM transaction_details td
-            WHERE td.transaction_guid = t.guid
-              AND LOWER(td.purchase_type_name) = 'free trial'
-          )
+        WHERE ${paidPredicate}
       ),
       referral_transactions AS (
         SELECT fc.referal_code, COUNT(*) AS transaction_count
         FROM filtered_customers fc
-        JOIN transactions_idr ti ON ti.customer_guid = fc.guid::uuid
+        JOIN transactions_paid ti ON ti.customer_guid = fc.guid::uuid
         GROUP BY fc.referal_code
       ),
       expired_apps AS (
@@ -91,7 +86,7 @@ export async function GET(_request: NextRequest) {
         COALESCE(rt.transaction_count, 0) AS transaction_count
       FROM filtered_customers fc
       LEFT JOIN referral_partners rp ON rp.code = fc.referal_code
-      LEFT JOIN transactions_idr ti ON ti.customer_guid = fc.guid::uuid
+      LEFT JOIN transactions_paid ti ON ti.customer_guid = fc.guid::uuid
       LEFT JOIN expired_apps ea ON ea.guid = fc.guid
       LEFT JOIN active_apps aa ON aa.guid = fc.guid
       LEFT JOIN referral_transactions rt ON rt.referal_code = fc.referal_code
@@ -113,14 +108,8 @@ export async function GET(_request: NextRequest) {
       FROM transactions t
         LEFT JOIN cms_customers c ON t.customer_guid::uuid = c.guid::uuid
         LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
-        WHERE LOWER(t.status) = 'finished'
+        WHERE ${paidPredicate}
           AND dee.email IS NULL
-          AND COALESCE(t.grand_total, 0) > 0
-          AND NOT EXISTS (
-            SELECT 1 FROM transaction_details td
-            WHERE td.transaction_guid = t.guid
-              AND LOWER(td.purchase_type_name) = 'free trial'
-          )
         GROUP BY DATE(t.created_at)
       )
       SELECT
@@ -248,13 +237,7 @@ export async function GET(_request: NextRequest) {
         SELECT DISTINCT t.customer_guid::uuid AS guid
         FROM transactions t
         INNER JOIN filtered_customers fc ON fc.guid::uuid = t.customer_guid::uuid
-        WHERE LOWER(t.status) = 'finished'
-          AND COALESCE(t.grand_total, 0) > 0
-          AND NOT EXISTS (
-            SELECT 1 FROM transaction_details td
-            WHERE td.transaction_guid = t.guid
-              AND LOWER(td.purchase_type_name) = 'free trial'
-          )
+        WHERE ${paidPredicate}
       ),
       has_any_sub AS (
         SELECT fc.guid::uuid

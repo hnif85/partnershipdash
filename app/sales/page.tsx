@@ -336,7 +336,8 @@ export default function TransactionsPage() {
           (d) => d.purchase_type_name?.toLowerCase() === "free trial"
         );
         const zeroTotal = Number(t.grand_total || 0) === 0;
-        return Boolean(detailHasTrial || zeroTotal);
+        const paymentFree = t.payment_channel_name?.toLowerCase().startsWith("free");
+        return Boolean(detailHasTrial || zeroTotal || paymentFree);
       })();
 
       const matchesSearch =
@@ -511,6 +512,7 @@ export default function TransactionsPage() {
         currency: currencyFilter,
         payment_channel: paymentFilter,
         referral: referralFilter,
+        purchase_type: purchaseTypeFilter,
       });
 
       const res = await fetch(`/api/transactions?${params}`, { cache: "no-store" });

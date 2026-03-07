@@ -13,6 +13,7 @@ export async function GET(request: NextRequest) {
     const paymentChannel = searchParams.get("payment_channel") || "";
     const currency = searchParams.get("currency") || "IDR";
     const referral = searchParams.get("referral") || "";
+    const purchaseType = searchParams.get("purchase_type") || "";
 
     const whereConditions: string[] = ["dee.email IS NULL"];
     const params: any[] = [];
@@ -69,6 +70,28 @@ export async function GET(request: NextRequest) {
       whereConditions.push(`rp.partner ILIKE $${paramIndex}`);
       params.push(`%${referral}%`);
       paramIndex += 1;
+    }
+
+    if (purchaseType) {
+      if (purchaseType === "trial") {
+        whereConditions.push(`(
+          EXISTS (
+            SELECT 1 FROM transaction_details td2
+            WHERE td2.transaction_guid = t.guid
+              AND LOWER(td2.purchase_type_name) = 'free trial'
+          )
+          OR COALESCE(t.grand_total, 0) = 0
+        )`);
+      } else if (purchaseType === "paid") {
+        whereConditions.push(`(
+          NOT EXISTS (
+            SELECT 1 FROM transaction_details td2
+            WHERE td2.transaction_guid = t.guid
+              AND LOWER(td2.purchase_type_name) = 'free trial'
+          )
+          AND COALESCE(t.grand_total, 0) > 0
+        )`);
+      }
     }
 
     const whereClause = whereConditions.length ? `WHERE ${whereConditions.join(" AND ")}` : "";

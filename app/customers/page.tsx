@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Customer = {
   guid?: string;
@@ -150,9 +150,58 @@ export default function CustomersPage() {
   const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [appFilter, setAppFilter] = useState<string>("all");
   const [referralPartnerFilter, setReferralPartnerFilter] = useState<string>("all");
+  const [referralPartnerSearch, setReferralPartnerSearch] = useState<string>("");
+  const [partnerDropdownOpen, setPartnerDropdownOpen] = useState(false);
   const initialChurn = searchParams.get("churnFilter") || "all";
   const [churnFilter, setChurnFilter] = useState<string>(initialChurn);
   const [applications, setApplications] = useState<string[]>([]);
+  const partnerDropdownRef = useRef<HTMLDivElement | null>(null);
+  const partnerInputRef = useRef<HTMLInputElement | null>(null);
+
+  const filteredReferralPartners = useMemo(() => {
+    const keyword = referralPartnerSearch.trim().toLowerCase();
+    const filtered = keyword
+      ? referralPartners.filter((partner) => {
+          const label = `${partner.partner || ""} (${partner.code || ""})`.toLowerCase();
+          return label.includes(keyword);
+        })
+      : referralPartners;
+
+    // Keep the currently selected partner visible even if it doesn't match the search term
+    if (referralPartnerFilter !== "all" && !filtered.some((p) => p.code === referralPartnerFilter)) {
+      const selected = referralPartners.find((p) => p.code === referralPartnerFilter);
+      if (selected) {
+        return [selected, ...filtered];
+      }
+    }
+
+    return filtered;
+  }, [referralPartnerSearch, referralPartnerFilter, referralPartners]);
+
+  const partnerOptions = useMemo(
+    () => [
+      { label: "Partner: Semua", code: "all" },
+      ...filteredReferralPartners.map((p) => ({
+        label: `${p.partner} (${p.code})`,
+        code: p.code,
+      })),
+    ],
+    [filteredReferralPartners]
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        partnerDropdownRef.current &&
+        !partnerDropdownRef.current.contains(event.target as Node)
+      ) {
+        setPartnerDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
 
   // Sync usage state
@@ -725,18 +774,48 @@ export default function CustomersPage() {
                       </option>
                     ))}
                   </select>
-                  <select
-                    value={referralPartnerFilter}
-                    onChange={(e) => setReferralPartnerFilter(e.target.value)}
-                    className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                  <div
+                    ref={partnerDropdownRef}
+                    className="relative w-52"
                   >
-                    <option value="all">Partner: Semua</option>
-                    {referralPartners.map((partner) => (
-                      <option key={partner.code} value={partner.code}>
-                        {partner.partner} ({partner.code})
-                      </option>
-                    ))}
-                  </select>
+                    <input
+                      ref={partnerInputRef}
+                      type="text"
+                      value={referralPartnerSearch || partnerOptions.find((p) => p.code === referralPartnerFilter)?.label || ""}
+                      onChange={(e) => {
+                        setReferralPartnerSearch(e.target.value);
+                        setPartnerDropdownOpen(true);
+                      }}
+                      onFocus={() => setPartnerDropdownOpen(true)}
+                      placeholder="Cari partner..."
+                      className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                    />
+                    {partnerDropdownOpen && (
+                      <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+                        {partnerOptions.length === 0 ? (
+                          <div className="px-3 py-2 text-sm text-zinc-500">Tidak ada hasil</div>
+                        ) : (
+                          partnerOptions.map((option) => (
+                            <button
+                              key={option.code}
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setReferralPartnerFilter(option.code);
+                                setReferralPartnerSearch(option.code === "all" ? "" : option.label);
+                                setPartnerDropdownOpen(false);
+                              }}
+                              className={`flex w-full items-start px-3 py-2 text-left text-sm transition hover:bg-zinc-100 ${
+                                option.code === referralPartnerFilter ? "bg-[#eef2ff]" : ""
+                              }`}
+                            >
+                              <span className="truncate">{option.label}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <select
                     value={churnFilter}
                     onChange={(e) => setChurnFilter(e.target.value)}

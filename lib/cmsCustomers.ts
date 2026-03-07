@@ -6,6 +6,7 @@ type CmsCustomerRow = {
   full_name?: string;
   email?: string;
   phone_number?: string;
+  brand?: string;
   city?: string;
   country?: string;
   status?: string;
@@ -254,6 +255,7 @@ export async function getCmsCustomers(
            c.full_name,
            c.email,
            c.phone_number,
+           company_info.brand,
            c.city,
            c.country,
            c.status,
@@ -299,6 +301,14 @@ export async function getCmsCustomers(
     LEFT JOIN credit_totals ON credit_totals.user_id = c.guid::uuid
     LEFT JOIN debit_stats ON debit_stats.user_id = c.guid::uuid
     LEFT JOIN app_totals ON app_totals.user_id = c.guid::uuid
+    LEFT JOIN LATERAL (
+      SELECT co.name AS brand
+      FROM survey_responses sr
+      LEFT JOIN companies co ON co.id = sr.company_id
+      WHERE LOWER(sr.customer_guid) = LOWER(c.guid::text)
+      ORDER BY sr.submitted_at DESC NULLS LAST
+      LIMIT 1
+    ) company_info ON TRUE
     LEFT JOIN LATERAL (
       SELECT json_agg(
         jsonb_build_object(
@@ -513,39 +523,39 @@ export async function getCustomerById(id: string): Promise<CmsCustomer | null> {
   const result = await pool.query<CmsCustomerRow>(
     `
     SELECT c.guid,
-           username,
-           full_name,
-           email,
-           phone_number,
-           city,
-           country,
-           status,
-           is_active,
-           is_email_verified,
-           is_phone_number_verified,
-           referal_code,
-           created_at,
-            updated_at,
-           gender,
-           birth_date,
-           identity_number,
-           identity_img,
-           country_id,
-           city_id,
-           is_identity_verified,
-           bank_name,
-           bank_account_number,
-           bank_owner_name,
-           corporate_name,
-           industry_name,
-           employee_qty,
-           solution_corporate_needs,
-           is_free_trial_use,
-           created_by_guid,
-           created_by_name,
-           updated_by_guid,
-           updated_by_name,
-           subscribe_list,
+           c.username,
+           c.full_name,
+           c.email,
+           c.phone_number,
+           c.city,
+           c.country,
+           c.status,
+           c.is_active,
+           c.is_email_verified,
+           c.is_phone_number_verified,
+           c.referal_code,
+           c.created_at,
+           c.updated_at,
+           c.gender,
+           c.birth_date,
+           c.identity_number,
+           c.identity_img,
+           c.country_id,
+           c.city_id,
+           c.is_identity_verified,
+           c.bank_name,
+           c.bank_account_number,
+           c.bank_owner_name,
+           c.corporate_name,
+           c.industry_name,
+           c.employee_qty,
+           c.solution_corporate_needs,
+           c.is_free_trial_use,
+           c.created_by_guid,
+           c.created_by_name,
+           c.updated_by_guid,
+           c.updated_by_name,
+           c.subscribe_list,
            COALESCE((
              SELECT SUM(amount)::numeric
              FROM credit_manager_transactions cmt
@@ -557,41 +567,27 @@ export async function getCustomerById(id: string): Promise<CmsCustomer | null> {
              WHERE cmt.user_id = c.guid::uuid AND LOWER(cmt.type) = 'debit'
            ), 0) AS credit_used,
            COALESCE((
-             SELECT array_agg(DISTINCT cmt.product_name ORDER BY cmt.product_name)
-             FROM credit_manager_transactions cmt
-             WHERE cmt.user_id = c.guid::uuid
-               AND cmt.product_name IS NOT NULL
+             SELECT array_agg(DISTINCT product_name ORDER BY product_name)
+             FROM (
+               SELECT COALESCE(cmt.product_name, 'General') AS product_name
+               FROM credit_manager_transactions cmt
+               WHERE cmt.user_id = c.guid::uuid
+             ) normalized_products
            ), ARRAY[]::text[]) AS applications,
           (
             SELECT json_agg(app ORDER BY app.product_name)
             FROM (
-              SELECT cmt.product_name AS product_name,
-                     COALESCE(SUM(CASE WHEN LOWER(cmt.type) = 'credit' THEN cmt.amount ELSE 0 END), 0) AS credit_added,
-                     COALESCE(SUM(CASE WHEN LOWER(cmt.type) = 'debit' THEN cmt.amount ELSE 0 END), 0) AS credit_used,
-                      (
-                        SELECT ARRAY(
-                          SELECT json_build_object('date', t.created_at, 'amount', t.amount)
-                          FROM credit_manager_transactions t
-                          WHERE t.user_id = c.guid::uuid
-                            AND t.product_name = cmt.product_name
-                            AND LOWER(t.type) = 'credit'
-                          ORDER BY t.created_at
-                        )
-                      ) AS credit_events,
-                      (
-                        SELECT ARRAY(
-                          SELECT json_build_object('date', t.created_at, 'amount', t.amount)
-                          FROM credit_manager_transactions t
-                          WHERE t.user_id = c.guid::uuid
-                            AND t.product_name = cmt.product_name
-                            AND LOWER(t.type) = 'debit'
-                          ORDER BY t.created_at
-                        )
-                      ) AS debit_events
+              SELECT
+                COALESCE(cmt.product_name, 'General') AS product_name,
+                SUM(CASE WHEN LOWER(cmt.type) = 'credit' THEN cmt.amount ELSE 0 END) AS credit_added,
+                SUM(CASE WHEN LOWER(cmt.type) = 'debit' THEN cmt.amount ELSE 0 END) AS credit_used,
+                ARRAY_AGG(json_build_object('date', cmt.created_at, 'amount', cmt.amount) ORDER BY cmt.created_at)
+                  FILTER (WHERE LOWER(cmt.type) = 'credit') AS credit_events,
+                ARRAY_AGG(json_build_object('date', cmt.created_at, 'amount', cmt.amount) ORDER BY cmt.created_at)
+                  FILTER (WHERE LOWER(cmt.type) = 'debit') AS debit_events
               FROM credit_manager_transactions cmt
               WHERE cmt.user_id = c.guid::uuid
-                AND cmt.product_name IS NOT NULL
-              GROUP BY cmt.product_name
+              GROUP BY COALESCE(cmt.product_name, 'General')
             ) app
            ) AS app_credits
           ,
@@ -629,6 +625,14 @@ export async function getCustomerById(id: string): Promise<CmsCustomer | null> {
            ) AS training_data
     FROM cms_customers c
     LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+    LEFT JOIN LATERAL (
+      SELECT co.name AS brand
+      FROM survey_responses sr
+      LEFT JOIN companies co ON co.id = sr.company_id
+      WHERE LOWER(sr.customer_guid) = LOWER(c.guid::text)
+      ORDER BY sr.submitted_at DESC NULLS LAST
+      LIMIT 1
+    ) company_info ON TRUE
     WHERE (c.guid = $1
        OR c.guid = LOWER($1)
        OR c.email = $1

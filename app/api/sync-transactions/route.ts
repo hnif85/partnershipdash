@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 import { mwxAuth } from "@/lib/mwxAuth";
+import fs from "fs";
+import path from "path";
 
 interface TransactionFromAPI {
   guid: string;
@@ -58,6 +60,18 @@ function sanitize(value: any): any {
     return value.replace(/[^\u0000-\u00FF]/g, "?");
   }
   return value;
+}
+
+const LOG_FILE = path.join(process.cwd(), "logs", "sync-transactions.log");
+
+function appendSyncErrorLog(entry: Record<string, any>) {
+  try {
+    fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+    const line = JSON.stringify({ ts: new Date().toISOString(), ...entry });
+    fs.appendFileSync(LOG_FILE, line + "\n");
+  } catch (err) {
+    console.error("Failed to write sync-transactions log:", err);
+  }
 }
 
 async function syncTransactionsFromAPI(
@@ -267,6 +281,12 @@ async function upsertTransaction(transaction: TransactionFromAPI): Promise<void>
       } catch (detailError) {
         // Log detail error but continue with other details to avoid failing whole transaction
         console.error(`Failed to upsert transaction detail ${detail?.guid || "(no-guid)"} for txn ${transaction.guid}:`, detailError);
+        appendSyncErrorLog({
+          level: "detail_error",
+          transaction_guid: transaction.guid,
+          detail_guid: detail?.guid,
+          message: detailError instanceof Error ? detailError.message : String(detailError),
+        });
       }
     }
   }
@@ -521,6 +541,14 @@ export async function POST(request: NextRequest) {
         console.error('Error details:', error);
         results.push({ guid: transaction.guid, status: "error", error: message });
         errorCount++;
+        appendSyncErrorLog({
+          level: "transaction_error",
+          transaction_guid: transaction.guid,
+          invoice_number: transaction.invoice_number,
+          customer_guid: transaction.customer?.guid,
+          email: transaction.customer?.email,
+          message,
+        });
       }
     }
 

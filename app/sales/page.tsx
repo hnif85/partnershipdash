@@ -1,7 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
+
+const SUPPORTED_CURRENCIES = [
+  "IDR",
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "SGD",
+  "MYR",
+  "THB",
+  "VND",
+  "PHP",
+  "KRW",
+  "CNY",
+  "HKD",
+  "TWD",
+];
 
 type Transaction = {
   guid: string;
@@ -63,11 +80,8 @@ const formatDate = (value?: string | null) => {
 };
 
 const formatCurrency = (value: number, currency: string = "USD") => {
-  // Validate currency code - only allow valid ISO currency codes
-  const validCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'IDR', 'SGD', 'MYR', 'THB', 'VND', 'PHP', 'KRW', 'CNY', 'HKD', 'TWD'];
-
   // If currency is not valid or contains invalid characters, use USD as fallback
-  if (!currency || !validCurrencies.includes(currency.toUpperCase()) || !/^[A-Z]{3}$/.test(currency.toUpperCase())) {
+  if (!currency || !SUPPORTED_CURRENCIES.includes(currency.toUpperCase()) || !/^[A-Z]{3}$/.test(currency.toUpperCase())) {
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "USD",
@@ -97,15 +111,23 @@ export default function TransactionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const defaultStatus = "finished";
-  const defaultCurrency = "IDR";
+  const defaultCurrency = ""; // show "Currency: Semua" by default
+  const defaultPurchaseType = "paid"; // default to Paid
 
   const [statusFilter, setStatusFilter] = useState<string>(defaultStatus);
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [customerFilter, setCustomerFilter] = useState<string>("");
-  const [currencyFilter, setCurrencyFilter] = useState<string>(defaultCurrency);
+  const [currencyFilter, setCurrencyFilter] = useState<string>(defaultCurrency); // kept for revenue formatting
+  const [purchaseTypeFilter, setPurchaseTypeFilter] = useState<string>(defaultPurchaseType);
+  const [paymentFilter, setPaymentFilter] = useState<string>("");
+  const [paymentChannels, setPaymentChannels] = useState<Array<{ name: string; code: string }>>([]);
   const [referralFilter, setReferralFilter] = useState<string>("");
   const [referrals, setReferrals] = useState<string[]>([]);
+  const [referralSearch, setReferralSearch] = useState<string>("");
+  const [referralDropdownOpen, setReferralDropdownOpen] = useState(false);
+  const referralDropdownRef = useRef<HTMLDivElement | null>(null);
+  const referralInputRef = useRef<HTMLInputElement | null>(null);
   const [page, setPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [uniqueCustomerCount, setUniqueCustomerCount] = useState(0);
@@ -130,20 +152,48 @@ export default function TransactionsPage() {
 
   useEffect(() => {
     loadTransactions();
-  }, [page, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter]);
+  }, [page, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter, paymentFilter, purchaseTypeFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter]);
+  }, [search, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter, paymentFilter, purchaseTypeFilter]);
 
   useEffect(() => {
     loadDefaultUpdateDates();
     loadReferrals();
+    loadPaymentChannels();
+  }, []);
+
+  const filteredReferrals = useMemo(() => {
+    const term = referralSearch.trim().toLowerCase();
+    const list = term ? referrals.filter((r) => r.toLowerCase().includes(term)) : referrals;
+    if (referralFilter && !list.includes(referralFilter)) {
+      return [referralFilter, ...list];
+    }
+    return list;
+  }, [referralSearch, referrals, referralFilter]);
+
+  const referralOptions = useMemo(
+    () => [
+      { label: "Referral: Semua", value: "" },
+      ...filteredReferrals.map((r) => ({ label: r, value: r })),
+    ],
+    [filteredReferrals]
+  );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (referralDropdownRef.current && !referralDropdownRef.current.contains(event.target as Node)) {
+        setReferralDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
     loadGlobalStats();
-  }, [search, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter]);
+  }, [search, statusFilter, startDate, endDate, customerFilter, currencyFilter, referralFilter, paymentFilter, purchaseTypeFilter]);
 
   const loadTransactions = async () => {
     setLoading(true);
@@ -160,7 +210,9 @@ export default function TransactionsPage() {
         end_date: endDate,
         customer_guid: customerFilter,
         currency: currencyFilter,
+        payment_channel: paymentFilter,
         referral: referralFilter,
+        purchase_type: purchaseTypeFilter,
       });
 
       const res = await fetch(`/api/transactions?${params}`, { cache: "no-store" });
@@ -208,7 +260,9 @@ export default function TransactionsPage() {
         end_date: endDate,
         customer_guid: customerFilter,
         currency: currencyFilter,
+        payment_channel: paymentFilter,
         referral: referralFilter,
+        purchase_type: purchaseTypeFilter,
       });
 
       const res = await fetch(`/api/transactions/stats?${params.toString()}`, {
@@ -277,6 +331,14 @@ export default function TransactionsPage() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     let filteredTransactions = transactions.filter((t) => {
+      const isFreeTrial = (() => {
+        const detailHasTrial = t.transaction_details?.some(
+          (d) => d.purchase_type_name?.toLowerCase() === "free trial"
+        );
+        const zeroTotal = Number(t.grand_total || 0) === 0;
+        return Boolean(detailHasTrial || zeroTotal);
+      })();
+
       const matchesSearch =
         !term ||
         t.invoice_number?.toLowerCase().includes(term) ||
@@ -286,6 +348,10 @@ export default function TransactionsPage() {
 
       const matchesStatus = statusFilter === "all" || t.status?.toLowerCase() === statusFilter.toLowerCase();
       const matchesCurrency = !currencyFilter || t.valuta_code?.toUpperCase() === currencyFilter.toUpperCase();
+      const matchesPayment = !paymentFilter || t.payment_channel_name === paymentFilter;
+      const matchesPurchaseType =
+        !purchaseTypeFilter ||
+        (purchaseTypeFilter === "trial" ? isFreeTrial : !isFreeTrial);
 
       const matchesDateRange = (() => {
         if (!startDate && !endDate) return true;
@@ -306,7 +372,7 @@ export default function TransactionsPage() {
       const matchesCustomer = !customerFilter || t.customer_guid === customerFilter;
       const matchesReferral = !referralFilter || t.referral_name?.toLowerCase() === referralFilter.toLowerCase();
 
-      return matchesSearch && matchesStatus && matchesDateRange && matchesCustomer && matchesReferral && matchesCurrency;
+      return matchesSearch && matchesStatus && matchesDateRange && matchesCustomer && matchesReferral && matchesCurrency && matchesPayment && matchesPurchaseType;
     });
 
     filteredTransactions.sort((a, b) => {
@@ -316,7 +382,7 @@ export default function TransactionsPage() {
     });
 
     return filteredTransactions;
-  }, [transactions, search, statusFilter, startDate, endDate, customerFilter, referralFilter, currencyFilter]);
+  }, [transactions, search, statusFilter, startDate, endDate, customerFilter, referralFilter, currencyFilter, paymentFilter, purchaseTypeFilter]);
 
   const paginated = useMemo(
     () => transactions,
@@ -324,17 +390,26 @@ export default function TransactionsPage() {
   );
 
   const currencyOptions = useMemo(() => {
-    const codes = new Set<string>();
+    // Start with supported currencies so dropdown always shows full choices
+    const codes = new Set<string>(SUPPORTED_CURRENCIES);
     transactions.forEach((t) => {
       if (t.valuta_code) {
         codes.add(t.valuta_code.toUpperCase());
       }
     });
-
-    const list = Array.from(codes);
-    if (!list.includes(defaultCurrency)) list.unshift(defaultCurrency);
-    return list;
+    const orderedSupported = SUPPORTED_CURRENCIES.filter((code) => codes.has(code));
+    const extras = Array.from(codes).filter((code) => !SUPPORTED_CURRENCIES.includes(code));
+    return [...orderedSupported, ...extras];
   }, [transactions]);
+
+  const paymentOptions = useMemo(() => {
+    const opts = paymentChannels.map((p) => ({ label: p.name, value: p.name }));
+    // Ensure current filter stays visible even if not in list
+    if (paymentFilter && !opts.find((o) => o.value === paymentFilter)) {
+      opts.unshift({ label: paymentFilter, value: paymentFilter });
+    }
+    return [{ label: "Payment: Semua", value: "" }, ...opts];
+  }, [paymentChannels, paymentFilter]);
 
   const getCurrencyLabel = (code: string) => {
     const normalized = code?.toUpperCase();
@@ -343,12 +418,30 @@ export default function TransactionsPage() {
     return normalized || "Currency";
   };
 
+  const loadPaymentChannels = async () => {
+    try {
+      const res = await fetch('/api/transactions/payment-channels', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) throw new Error(`Failed to load payment channels: ${res.status}`);
+      const data: any = await res.json();
+      if (data.payment_channels) {
+        setPaymentChannels(data.payment_channels);
+      }
+    } catch (error) {
+      console.error('Error loading payment channels:', error);
+    }
+  };
+
   const stats = useMemo(() => {
     const total = totalCount;
     const totalRevenue = transactions
       .filter((t) =>
         t.status?.toLowerCase() === 'finished' &&
-        (!currencyFilter || t.valuta_code?.toUpperCase() === currencyFilter.toUpperCase())
+        (!currencyFilter || t.valuta_code?.toUpperCase() === currencyFilter.toUpperCase()) &&
+        (!paymentFilter || t.payment_channel_name === paymentFilter)
       )
       .reduce((sum, t) => sum + (t.grand_total || 0), 0);
     const finishedTransactions = transactions.filter((t) => t.status?.toLowerCase() === 'finished').length;
@@ -416,6 +509,7 @@ export default function TransactionsPage() {
         end_date: endDate,
         customer_guid: customerFilter,
         currency: currencyFilter,
+        payment_channel: paymentFilter,
         referral: referralFilter,
       });
 
@@ -572,6 +666,7 @@ export default function TransactionsPage() {
               onChange={(e) => setCurrencyFilter(e.target.value)}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
             >
+              <option value="">Currency: Semua</option>
               {currencyOptions.map((code) => (
                 <option key={code} value={code}>
                   {getCurrencyLabel(code)}
@@ -579,17 +674,68 @@ export default function TransactionsPage() {
               ))}
             </select>
             <select
-              value={referralFilter}
-              onChange={(e) => setReferralFilter(e.target.value)}
+              value={purchaseTypeFilter}
+              onChange={(e) => setPurchaseTypeFilter(e.target.value)}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
             >
-              <option value="">Referral: Semua</option>
-              {referrals.map((referral, index) => (
-                <option key={`${referral}-${index}`} value={referral}>
-                  {referral}
+              <option value="">Purchase: Semua</option>
+              <option value="trial">Free Trial</option>
+              <option value="paid">Paid</option>
+            </select>
+            <select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+            >
+              {paymentOptions.map((opt) => (
+                <option key={opt.value || 'all'} value={opt.value}>
+                  {opt.label}
                 </option>
               ))}
             </select>
+            <div ref={referralDropdownRef} className="relative w-60">
+              <input
+                ref={referralInputRef}
+                type="text"
+                value={
+                  referralSearch ||
+                  referralOptions.find((opt) => opt.value === referralFilter)?.label ||
+                  ""
+                }
+                onChange={(e) => {
+                  setReferralSearch(e.target.value);
+                  setReferralDropdownOpen(true);
+                }}
+                onFocus={() => setReferralDropdownOpen(true)}
+                placeholder="Cari referral..."
+                className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+              />
+              {referralDropdownOpen && (
+                <div className="absolute z-20 mt-1 max-h-64 w-full overflow-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+                  {referralOptions.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-zinc-500">Tidak ada hasil</div>
+                  ) : (
+                    referralOptions.map((option) => (
+                      <button
+                        key={option.value || 'all'}
+                        type="button"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setReferralFilter(option.value);
+                          setReferralSearch(option.value ? option.label : "");
+                          setReferralDropdownOpen(false);
+                        }}
+                        className={`flex w-full items-start px-3 py-2 text-left text-sm transition hover:bg-zinc-100 ${
+                          option.value === referralFilter ? "bg-[#eef2ff]" : ""
+                        }`}
+                      >
+                        <span className="truncate">{option.label}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             <input
               type="date"
               value={startDate}
@@ -610,8 +756,11 @@ export default function TransactionsPage() {
 
                 setStatusFilter(defaultStatus);
                 setCurrencyFilter(defaultCurrency);
+                setPurchaseTypeFilter(defaultPurchaseType);
+                setPaymentFilter("");
 
                 setReferralFilter("");
+                setReferralSearch("");
 
                 setStartDate("");
 

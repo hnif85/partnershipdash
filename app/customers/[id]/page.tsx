@@ -40,6 +40,28 @@ export default async function CustomerDetail({
     customer.referal_code &&
     (partners.find((p) => p.code === customer.referal_code)?.partner || customer.referal_code);
 
+  const brand =
+    customer.brand ||
+    customer.corporate_name ||
+    (customer as any).brand ||
+    customer.full_name ||
+    customer.username ||
+    customer.email;
+
+  const socialMedia = [
+    (customer as any).instagram,
+    (customer as any).instagram_url,
+    (customer as any).ig,
+    (customer as any).tiktok,
+    (customer as any).tiktok_url,
+    (customer as any).facebook,
+    (customer as any).facebook_url,
+    (customer as any).linkedin,
+    (customer as any).website,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
   const profileFields: Array<{ label: string; value?: string | null; helper?: string | null }> = [
     { label: "Username", value: customer.username },
     { label: "Gender", value: customer.gender },
@@ -65,6 +87,18 @@ export default async function CustomerDetail({
     { label: "Country/City ID", value: [customer.country_id, customer.city_id].filter(Boolean).join(" / ") },
     { label: "Subscribe list", value: customer.subscribe_list ? JSON.stringify(customer.subscribe_list) : "" },
   ];
+
+  // Extract product names from subscribe_list as a fallback when there are no credit transactions.
+  const subscribedProducts =
+    Array.isArray(customer.subscribe_list)
+      ? customer.subscribe_list.flatMap((entry: any) => {
+          const products = Array.isArray(entry?.product_list) ? entry.product_list : [];
+          return products.map((p: any) => ({
+            name: p?.product_name || p?.product || "-",
+            expired_at: p?.expired_at || p?.expiredAt || p?.expired_date || p?.expiredAtDate || null,
+          }));
+        })
+      : [];
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
@@ -93,8 +127,11 @@ export default async function CustomerDetail({
           <h3 className="text-sm font-semibold uppercase text-zinc-500">Profil Ringkas</h3>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <Field label="Username" value={customer.username} />
+            <Field label="Phone" value={customer.phone_number} />
+            <Field label="Brand" value={brand} />
             <Field label="Register pada" value={formatDate(customer.created_at)} />
-            <Field label="Referral" value={customer.referal_code} helper={partnerLabel} />
+            <Field label="Referral" value={`${partnerLabel} (${customer.referal_code})`} />
+            <Field label="Sosial media" value={socialMedia || "-"} />
           </div>
         </section>
 
@@ -150,6 +187,17 @@ export default async function CustomerDetail({
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : subscribedProducts.length ? (
+            <div className="mt-4 space-y-2 text-sm text-zinc-800">
+              {subscribedProducts.map((sub, idx) => (
+                <div key={`${sub.name}-${idx}`} className="rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2">
+                  <p className="font-semibold text-[#0f172a]">{sub.name || "-"}</p>
+                  <p className="text-xs text-zinc-600">
+                    Berlaku sampai: {sub.expired_at ? formatDate(sub.expired_at) : "-"}
+                  </p>
+                </div>
+              ))}
             </div>
           ) : (
             <p className="mt-3 text-sm text-zinc-600">Belum ada data aplikasi.</p>

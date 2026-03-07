@@ -79,9 +79,9 @@ export async function POST(request: NextRequest) {
     // Handle bulk insert
     if (emails && emails.trim()) {
       // Normalize and deduplicate incoming payload first to avoid duplicate key violations
-      const emailList = emails.split('\n')
-        .map((e: string) => e.trim())
-        .filter((e: string) => e.length > 0);
+      const emailList: string[] = emails.split('\n')
+        .map((e) => e.trim())
+        .filter((e) => e.length > 0);
 
       if (emailList.length === 0) {
         return NextResponse.json(
@@ -90,27 +90,27 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const uniqueEmailList = Array.from(new Set(emailList));
-      const payloadDuplicates = emailList.filter((email: string, idx: number) => emailList.indexOf(email) !== idx);
+      const uniqueEmailList: string[] = Array.from(new Set(emailList));
+      const payloadDuplicates = emailList.filter((email, idx) => emailList.indexOf(email) !== idx);
 
       // Check for duplicates already stored
-      const placeholders = uniqueEmailList.map((_: string, i: number) => `$${i + 1}`).join(',');
+      const placeholders = uniqueEmailList.map((_, i) => `$${i + 1}`).join(',');
       const existingQuery = `SELECT email FROM public.demo_excluded_emails WHERE email IN (${placeholders})`;
       const existing = uniqueEmailList.length > 0
         ? await executeQuery<ExcludedEmail>(existingQuery, uniqueEmailList)
         : [];
 
       const existingEmails = new Set(existing.map((e: ExcludedEmail) => e.email));
-      const newEmails = uniqueEmailList.filter((email: string) => !existingEmails.has(email));
+      const newEmails = uniqueEmailList.filter((email) => !existingEmails.has(email));
 
       let results: ExcludedEmail[] = [];
 
       if (newEmails.length > 0) {
         // Parameterized bulk insert with conflict protection
         const valuesClause = newEmails
-          .map((_: string, i: number) => `($${i * 2 + 1}, $${i * 2 + 2}, true, NOW(), NOW())`)
+          .map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, true, NOW(), NOW())`)
           .join(', ');
-        const insertParams = newEmails.flatMap((email: string) => [email, reason]);
+        const insertParams = newEmails.flatMap((email) => [email, reason]);
         const insertQuery = `
           INSERT INTO public.demo_excluded_emails (email, reason, is_active, created_at, updated_at)
           VALUES ${valuesClause}

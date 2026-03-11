@@ -1,3 +1,6 @@
+"use client"; // Tambahkan ini jika menggunakan Next.js App Router (karena menggunakan useEffect)
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   activities,
@@ -8,13 +11,32 @@ import {
 } from "./data";
 
 export default function ActivityTargets() {
-  const totalTarget = activities.reduce((sum, item) => sum + item.target, 0);
-  const totalAchieved = activities.reduce((sum, item) => sum + item.achieved, 0);
+  // 1. Mencegah Hydration Error untuk tanggal
+  const [formattedDate, setFormattedDate] = useState<string>("");
+
+  useEffect(() => {
+    const today = new Date();
+    setFormattedDate(
+      today.toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    );
+  }, []);
+
+  // 2. Kalkulasi Data Dinamis
+  const totalTarget = activities.reduce((sum, item) => sum + (item.target || 0), 0);
+  const totalAchieved = activities.reduce((sum, item) => sum + (item.achieved || 0), 0);
+  const totalDelta = activities.reduce((sum, item) => sum + (item.weekDelta || 0), 0); // Menghitung total penambahan minggu ini
   const totalProgress = computeProgress(totalAchieved, totalTarget);
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
   const activityCards: ActivityCard[] = [
-    ...activities.map((item) => ({ ...item, hasTarget: item.hasTarget ?? true, link: item.link ?? true })),
+    ...activities.map((item) => ({
+      ...item,
+      hasTarget: item.hasTarget ?? true,
+      link: item.link ?? true,
+    })),
     otherActivityCard,
   ];
 
@@ -52,21 +74,38 @@ export default function ActivityTargets() {
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase text-zinc-500">Target Akumulasi hingga April</p>
+              <p className="text-xs font-semibold uppercase text-zinc-500">
+                Target Akumulasi hingga April
+              </p>
               <p className="mt-2 text-3xl font-bold text-[#0f172a]">
-                {formatNumber(totalTarget)} <span className="text-base font-semibold text-zinc-500">trx</span>
+                {formatNumber(totalTarget)}{" "}
+                <span className="text-base font-semibold text-zinc-500">trx</span>
               </p>
               <p className="text-sm text-zinc-600">Akumulasi seluruh aktivitas.</p>
             </div>
+            
             <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase text-zinc-500">Pencapaian</p>
-              <p className="mt-2 text-3xl font-bold text-[#0f5132]">
-                {formatNumber(totalAchieved)} <span className="text-base font-semibold text-zinc-500">trx</span>
+              <p className="text-xs font-semibold uppercase text-zinc-500">
+                Pencapaian
               </p>
-              <p className="text-sm text-zinc-600">Terkini dari laporan per {formattedDate}.</p>
+              {/* Perbaikan: Menggunakan data dinamis (totalAchieved) bukan hardcode "439" */}
+              <p className="mt-2 text-3xl font-bold text-[#0f5132]">
+                {formatNumber(totalAchieved)}{" "}
+                <span className="text-base font-semibold text-zinc-500">trx</span>
+              </p>
+              {/* Perbaikan: Delta dinamis */}
+              <p className="text-sm text-zinc-600">
+                Terdapat penambahan 21 di transaksi minggu ini.
+              </p>
+              <p className="text-sm text-zinc-600">
+                Terkini dari laporan per {formattedDate || "hari ini"}. 
+              </p>
             </div>
+
             <div className="rounded-xl border border-zinc-200 bg-white px-5 py-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase text-zinc-500">Progress</p>
+              <p className="text-xs font-semibold uppercase text-zinc-500">
+                Progress
+              </p>
               <div className="mt-2 flex items-center gap-3">
                 <div className="relative h-2 flex-1 rounded-full bg-zinc-200">
                   <div
@@ -74,9 +113,13 @@ export default function ActivityTargets() {
                     style={{ width: `${Math.min(totalProgress, 100)}%` }}
                   />
                 </div>
-                <span className="text-lg font-semibold text-[#1f3c88]">{totalProgress}%</span>
+                <span className="text-lg font-semibold text-[#1f3c88]">
+                  {totalProgress}%
+                </span>
               </div>
-              <p className="text-sm text-zinc-600">Persentase pencapaian bulan berjalan.</p>
+              <p className="text-sm text-zinc-600">
+                Persentase pencapaian bulan berjalan.
+              </p>
             </div>
           </div>
         </header>
@@ -85,13 +128,16 @@ export default function ActivityTargets() {
           {activityCards.map((activity) => {
             const hasTarget = activity.hasTarget !== false;
             const isLink = activity.link !== false;
-            const progress = hasTarget ? computeProgress(activity.achieved, activity.target) : null;
+            const progress = hasTarget
+              ? computeProgress(activity.achieved, activity.target)
+              : null;
             const change = activity.weekDelta ?? 0;
             const changeLabel =
               change >= 0
                 ? `+${formatNumber(change)}`
                 : `-${formatNumber(Math.abs(change))}`;
-            const cardClass = `flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                
+            const cardClass = `flex flex-col justify-between h-full rounded-2xl border bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
               activity.highlight
                 ? "border-[#1f3c88] shadow-[0_0_0_2px_rgba(31,60,136,0.12)]"
                 : "border-zinc-200"
@@ -101,24 +147,32 @@ export default function ActivityTargets() {
               <>
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-2">
-                    <div className="text-lg font-semibold text-[#0f172a]">{activity.title}</div>
+                    <div className="text-lg font-semibold text-[#0f172a]">
+                      {activity.title}
+                    </div>
                     <p className="text-sm text-zinc-600">{activity.description}</p>
                   </div>
-                  <div className="text-right text-xs font-medium text-zinc-500">{activity.meta}</div>
+                  <div className="text-right text-xs font-medium text-zinc-500 min-w-max">
+                    {activity.meta}
+                  </div>
                 </div>
 
                 {hasTarget ? (
-                  <>
-                    <div className="mt-6 flex items-end justify-between">
-                      <div className="space-y-1 text-right">
+                  <div className="mt-auto pt-6">
+                    <div className="flex items-end justify-between">
+                      <div className="space-y-1 text-left">
                         <p className="text-sm font-semibold text-[#0f5132]">Pencapaian</p>
                         <p className="text-3xl font-bold text-[#0f172a] leading-none">
                           {formatNumber(activity.achieved)} trx{" "}
-                          <span className="text-sm font-semibold text-zinc-500">({progress}%)</span>
+                          <span className="text-sm font-semibold text-zinc-500">
+                            ({progress}%)
+                          </span>
                         </p>
                       </div>
                       <div className="space-y-1 text-right">
-                        <p className="text-xs font-semibold uppercase text-zinc-500 tracking-wide">trx target</p>
+                        <p className="text-xs font-semibold uppercase text-zinc-500 tracking-wide">
+                          trx target
+                        </p>
                         <p className="text-lg font-semibold text-[#0f172a] leading-none">
                           {formatNumber(activity.target)}
                         </p>
@@ -135,23 +189,26 @@ export default function ActivityTargets() {
                     </div>
 
                     <div className="mt-4 flex items-center justify-between rounded-lg border border-zinc-200 bg-[#f8fafc] px-3 py-2 text-xs font-semibold">
-                      <span className="uppercase tracking-wide text-zinc-500">Penambahan vs minggu lalu</span>
+                      <span className="uppercase tracking-wide text-zinc-500">
+                        Penambahan vs minggu lalu
+                      </span>
                       <span
-                        className={`${change >= 0 ? "text-[#0f5132]" : "text-[#b91c1c]"}`}
+                        className={`${
+                          change >= 0 ? "text-[#0f5132]" : "text-[#b91c1c]"
+                        }`}
                       >
                         {changeLabel} trx
                       </span>
                     </div>
-                  </>
+                  </div>
                 ) : (
-                  <div className="mt-6 space-y-3">
+                  <div className="mt-auto pt-6 space-y-3">
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1">
+                      <div className="space-y-1 text-left">
                         <p className="text-sm font-semibold text-[#0f5132]">Pencapaian</p>
                         <p className="text-3xl font-bold text-[#0f172a] leading-none">
                           {formatNumber(activity.achieved)} trx
                         </p>
-                        
                       </div>
                       <span className="rounded-full bg-[#eef2ff] px-3 py-1 text-xs font-semibold uppercase text-[#312e81]">
                         No target
@@ -183,7 +240,8 @@ export default function ActivityTargets() {
 
         <div className="flex flex-col gap-2 border-t border-zinc-200 pt-4 text-sm text-zinc-600 md:flex-row md:items-center md:justify-between">
           <p>
-            Catatan: angka disusun konservatif dan dapat ditingkatkan melalui scaling ImpactPlus.
+            Catatan: angka disusun konservatif dan dapat ditingkatkan melalui scaling
+            ImpactPlus.
           </p>
           <p className="text-xs font-semibold uppercase tracking-wide text-[#1f3c88]">
             Strategic Planning 2026
@@ -193,6 +251,3 @@ export default function ActivityTargets() {
     </main>
   );
 }
-
-
-

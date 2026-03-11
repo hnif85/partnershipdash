@@ -76,6 +76,11 @@ const formatDate = (value?: string | null) => {
   return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
 };
 
+const formatYMD = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+
 type SyncState = {
   status: "idle" | "loading" | "success" | "error";
   message: string | null;
@@ -343,6 +348,23 @@ export default function Dashboard() {
         body: JSON.stringify({ incremental: true }),
       }
     );
+
+  const handleSyncUsersDailyRange = () => {
+    const today = new Date();
+    const startDate = `${today.getFullYear()}-01-01`;
+    const endDate = formatYMD(today);
+
+    return runSync(
+      "/api/sync-customers/daily-range",
+      setSyncUserState,
+      (data) =>
+        `${data.days_processed ?? 0} hari | ${data.total_success ?? data.total_processed ?? 0} user`,
+      {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_date: startDate, end_date: endDate }),
+      }
+    );
+  };
 
   const handleSyncTransactions = () =>
     runSync(
@@ -694,6 +716,17 @@ export default function Dashboard() {
                         }`}
                       >
                         {syncUserState.status === "loading" ? "Sync User..." : "Sync User"}
+                      </button>
+                      <button
+                        onClick={handleSyncUsersDailyRange}
+                        disabled={syncUserState.status === "loading"}
+                        className={`rounded-lg px-3 py-2 text-xs font-semibold transition border ${
+                          syncUserState.status === "loading"
+                            ? "border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
+                            : "border-[#1f3c88] text-[#1f3c88] hover:bg-[#eef2ff]"
+                        }`}
+                      >
+                        {syncUserState.status === "loading" ? "Sync User Harian..." : "Sync User Harian (Jan 1 - Now)"}
                       </button>
                       <button
                         onClick={handleSyncTransactions}

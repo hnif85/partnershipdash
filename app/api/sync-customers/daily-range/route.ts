@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { upsertCustomer } from "@/lib/cmsCustomers";
-import { pool } from "@/lib/database";
 
 const API_URL =
   process.env.CMS_CUSTOMER_PUBLIC_API_URL ??
@@ -10,9 +9,10 @@ const API_KEY =
 
 const DEFAULT_LIMIT = Number(process.env.SYNC_CUSTOMERS_LIMIT ?? 300);
 const MAX_LIMIT = 3000;
-
 const REQUEST_TIMEOUT_MS = Number(process.env.SYNC_CUSTOMERS_TIMEOUT_MS ?? 20000);
 const MAX_RETRY = Number(process.env.SYNC_CUSTOMERS_MAX_RETRY ?? 3);
+const DEFAULT_THROTTLE_MS = Number(process.env.SYNC_CUSTOMERS_DAILY_THROTTLE_MS ?? 300);
+const MAX_RANGE_DAYS = Number(process.env.SYNC_CUSTOMERS_MAX_RANGE_DAYS ?? 370);
 
 type ApiCustomer = {
   guid?: string;
@@ -63,6 +63,25 @@ type ApiResponse = {
   message_en?: string;
   message_id?: string;
 };
+
+type DaySyncResult = {
+  date: string;
+  processed: number;
+  success: number;
+  errors: number;
+  sample_errors: Array<{ guid?: string; error: string }>;
+};
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function formatYMD(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function parseInteger(value: number | string | null | undefined): number | undefined {
   if (value === null || value === undefined || value === "") return undefined;
@@ -122,10 +141,6 @@ function normalizeCustomer(apiCustomer: ApiCustomer) {
   };
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function fetchCustomersPage(page: number, limit: number, bodyFilter: any) {
   if (!API_KEY) {
     throw new Error("CMS_CUSTOMER_PUBLIC_API_KEY / CMS_CUSTOMER_API_KEY is not configured");
@@ -146,6 +161,14 @@ async function fetchCustomersPage(page: number, limit: number, bodyFilter: any) 
     sort: bodyFilter?.sort || "DESC",
   };
 
+  console.log("[daily-range] requesting upstream", {
+    page,
+    limit,
+    filter: payload.filter,
+    order: payload.order,
+    sort: payload.sort,
+  });
+
   let attempt = 0;
   while (true) {
     attempt += 1;
@@ -165,7 +188,6 @@ async function fetchCustomersPage(page: number, limit: number, bodyFilter: any) 
 
       if (!response.ok) {
         const text = await response.text();
-        // Retry on upstream timeout / gateway issues
         if (response.status === 504 && attempt < MAX_RETRY) {
           await sleep(500 * attempt);
           continue;
@@ -189,17 +211,94 @@ async function fetchCustomersPage(page: number, limit: number, bodyFilter: any) 
           ? json.data?.total_page
           : undefined);
 
+      console.log("[daily-range] upstream result", {
+        page,
+        customers: customers.length,
+        totalData,
+        totalPage,
+      });
+
       return { customers, totalData: totalData ?? customers.length, totalPage: totalPage ?? null };
     } catch (err) {
       clearTimeout(timeout);
       if (err instanceof Error && err.name === "AbortError" && attempt < MAX_RETRY) {
-        // Backoff and retry when we hit timeout
         await sleep(500 * attempt);
         continue;
       }
       throw err;
     }
   }
+}
+
+async function syncSingleDay(
+  date: string,
+  limit: number,
+  baseFilter: any,
+  order?: string,
+  sort?: string
+): Promise<DaySyncResult> {
+  let page = 1;
+  let processed = 0;
+  let success = 0;
+  let errors = 0;
+  const sampleErrors: Array<{ guid?: string; error: string }> = [];
+  const processedGuids = new Set<string>();
+  // Beberapa endpoint membutuhkan rentang (start<= date < end); gunakan end_date = start_date + 1 hari.
+  const endDate = new Date(date);
+  endDate.setDate(endDate.getDate() + 1);
+  const endDateStr = formatYMD(endDate);
+
+  while (true) {
+    const { customers, totalData, totalPage } = await fetchCustomersPage(page, limit, {
+      filter: {
+        ...baseFilter,
+        set_date: true,
+        start_date: date,
+        end_date: endDateStr,
+      },
+      order,
+      sort,
+    });
+
+    if (!customers.length) break;
+
+    for (const apiCustomer of customers) {
+      const guid = apiCustomer?.guid;
+      if (!guid) {
+        errors += 1;
+        if (sampleErrors.length < 5) sampleErrors.push({ guid: undefined, error: "Missing guid" });
+        continue;
+      }
+
+      if (processedGuids.has(guid)) {
+        errors += 1;
+        if (sampleErrors.length < 5)
+          sampleErrors.push({ guid, error: "Duplicate guid in payload, skipped" });
+        continue;
+      }
+
+      processedGuids.add(guid);
+      processed += 1;
+
+      try {
+        const dbCustomer = normalizeCustomer(apiCustomer);
+        await upsertCustomer(dbCustomer);
+        success += 1;
+      } catch (err) {
+        errors += 1;
+        const message = err instanceof Error ? err.message : "Unknown error";
+        if (sampleErrors.length < 5) sampleErrors.push({ guid, error: message });
+      }
+    }
+
+    page += 1;
+
+    if ((totalPage && page > totalPage) || customers.length < limit || processed >= (totalData || 0)) {
+      break;
+    }
+  }
+
+  return { date, processed, success, errors, sample_errors: sampleErrors };
 }
 
 export async function POST(request: Request) {
@@ -209,111 +308,86 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json().catch(() => ({}))) as any;
-    const useIncremental = body?.incremental === true || body?.mode === "incremental";
+
+    const now = new Date();
+    const startDateStr = typeof body?.start_date === "string" ? body.start_date : `${now.getFullYear()}-01-01`;
+    const endDateStr = typeof body?.end_date === "string" ? body.end_date : formatYMD(now);
+
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+      return NextResponse.json({ error: "Invalid start_date or end_date" }, { status: 400 });
+    }
+
+    if (startDate > endDate) {
+      return NextResponse.json({ error: "start_date must be before or equal to end_date" }, { status: 400 });
+    }
+
+    const rangeDays = Math.floor(
+      (endDate.setHours(0, 0, 0, 0) - startDate.setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24)
+    ) + 1;
+
+    if (rangeDays > MAX_RANGE_DAYS) {
+      return NextResponse.json(
+        { error: `Date range too large: ${rangeDays} days. Max allowed is ${MAX_RANGE_DAYS}` },
+        { status: 400 }
+      );
+    }
 
     const limitInput = Number(body?.limit) || DEFAULT_LIMIT;
     const limit = Math.max(1, Math.min(limitInput, MAX_LIMIT));
-    let page = Number(body?.page) || 1;
-    let filter = body?.filter || {};
+    const throttleMs = Math.max(0, Number(body?.throttle_ms ?? DEFAULT_THROTTLE_MS));
+    const baseFilter = body?.filter || {};
+    const order = body?.order;
+    const sort = body?.sort;
 
-    // Incremental mode: derive date range from last created_at in cms_customers
-    if (useIncremental) {
-      const latest = await pool
-        .query<{ max_created_at: string | null }>(
-          `SELECT MAX(created_at) AS max_created_at FROM cms_customers`
-        )
-        .then((r) => r.rows[0]?.max_created_at);
-
-      const lastCreated = latest ? new Date(latest) : new Date();
-      // Start: H-1 from last created, set to 00:00 local
-      const start = new Date(lastCreated);
-      start.setHours(0, 0, 0, 0);
-      start.setDate(start.getDate() - 1);
-      // End: today, 23:59 local (API expects YYYY-MM-DD; use date string)
-      const end = new Date();
-      end.setHours(23, 59, 59, 999);
-
-      const formatYMDLocal = (d: Date) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      filter = {
-        ...filter,
-        set_date: true,
-        start_date: formatYMDLocal(start),
-        end_date: formatYMDLocal(end),
-      };
-    }
-
-    const results: Array<{ guid?: string; status: "success" | "error"; error?: string }> = [];
-    let successCount = 0;
-    let errorCount = 0;
+    const dayResults: DaySyncResult[] = [];
     let totalProcessed = 0;
-    let totalPage = 0;
-    const processedGuids = new Set<string>();
+    let totalSuccess = 0;
+    let totalErrors = 0;
 
-    // Iterate through paginated API until no more data
-    // The external API returns current_page/total_page so we stop when finished or when batch < limit.
-    while (true) {
-      const { customers, totalData, totalPage: apiTotalPage } = await fetchCustomersPage(page, limit, {
-        filter,
-        order: body?.order,
-        sort: body?.sort,
+    const cursor = new Date(startDate);
+    while (cursor <= endDate) {
+      const dateStr = formatYMD(cursor);
+      const result = await syncSingleDay(dateStr, limit, baseFilter, order, sort);
+      dayResults.push(result);
+      console.log("[daily-range] day summary", {
+        date: dateStr,
+        processed: result.processed,
+        success: result.success,
+        errors: result.errors,
       });
+      totalProcessed += result.processed;
+      totalSuccess += result.success;
+      totalErrors += result.errors;
 
-      if (apiTotalPage) {
-        totalPage = apiTotalPage;
+      if (throttleMs > 0) {
+        await sleep(throttleMs);
       }
 
-      if (!customers.length) break;
-
-      for (const apiCustomer of customers) {
-        const guid = apiCustomer?.guid;
-
-        if (!guid) {
-          errorCount++;
-          results.push({ guid: undefined, status: "error", error: "Missing guid" });
-          continue;
-        }
-
-        if (processedGuids.has(guid)) {
-          // Skip duplicate customer within the same sync run
-          results.push({ guid, status: "error", error: "Duplicate guid in payload, skipped" });
-          continue;
-        }
-
-        processedGuids.add(guid);
-        totalProcessed++;
-
-        try {
-          const dbCustomer = normalizeCustomer(apiCustomer);
-          await upsertCustomer(dbCustomer);
-          successCount++;
-          results.push({ guid, status: "success" });
-        } catch (err) {
-          const message = err instanceof Error ? err.message : "Unknown error";
-          errorCount++;
-          results.push({ guid, status: "error", error: message });
-        }
-      }
-      page += 1;
-
-      // Stop when we reached last page
-      if ((apiTotalPage && page > apiTotalPage) || customers.length < limit || totalProcessed >= (totalData || 0)) {
-        break;
-      }
+      cursor.setDate(cursor.getDate() + 1);
     }
+
+    const successDays = dayResults.filter((d) => d.errors === 0).length;
 
     return NextResponse.json({
       status: "success",
+      start_date: formatYMD(startDate),
+      end_date: formatYMD(endDate),
+      days_processed: dayResults.length,
       total_processed: totalProcessed,
-      success_count: successCount,
-      error_count: errorCount,
-      total_pages: totalPage || undefined,
-      message: "Customer sync v2 completed",
-      sample_errors: results.filter((r) => r.status === "error").slice(0, 5),
+      total_success: totalSuccess,
+      total_errors: totalErrors,
+      total_success_days: successDays,
+      sample_errors: dayResults.flatMap((d) =>
+        d.sample_errors.map((e) => ({ ...e, date: d.date }))
+      ).slice(0, 10),
+      per_day: dayResults,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("[sync-customers v2] error:", message);
+    console.error("[sync-customers/daily-range] error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

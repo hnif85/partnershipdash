@@ -92,7 +92,7 @@ export const activities: Activity[] = [
 export const otherActivityCard: OtherActivity = {
   slug: "other",
   title: "Other / Misc",
-  description: "Aktivitas lain yang belum diberi target khusus, namun tetap dipantau.",
+  description: "Aktivitas lain yang tetap dipantau.",
   meta: "Transaksi yang tidak masuk kategori lain",
   target: 0,
   achieved: 14,

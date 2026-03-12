@@ -404,7 +404,15 @@ export default function TransactionsPage() {
   }, [transactions]);
 
   const paymentOptions = useMemo(() => {
-    const opts = paymentChannels.map((p) => ({ label: p.name, value: p.name }));
+    const seen = new Set<string>();
+    const opts = paymentChannels.reduce<Array<{ label: string; value: string }>>((acc, p) => {
+      const raw = (p.name || "").trim();
+      const key = raw.toUpperCase();
+      if (!key || seen.has(key)) return acc;
+      seen.add(key);
+      acc.push({ label: raw, value: raw });
+      return acc;
+    }, []);
     // Ensure current filter stays visible even if not in list
     if (paymentFilter && !opts.find((o) => o.value === paymentFilter)) {
       opts.unshift({ label: paymentFilter, value: paymentFilter });

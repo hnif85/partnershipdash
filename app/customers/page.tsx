@@ -108,6 +108,11 @@ const formatDate = (value?: string | null) => {
   return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
 };
 
+const formatYMD = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+
 const renderChurnBadge = (status?: string | null) => {
   const normalized = (status || "").toLowerCase();
   const variants: Record<string, { label: string; className: string }> = {
@@ -213,6 +218,14 @@ export default function CustomersPage() {
   const [syncCustomersLoading, setSyncCustomersLoading] = useState(false);
   const [syncCustomersMessage, setSyncCustomersMessage] = useState<string | null>(null);
   const [syncCustomersSuccess, setSyncCustomersSuccess] = useState<boolean | null>(null);
+  const [syncCustomersRangeLoading, setSyncCustomersRangeLoading] = useState(false);
+  const [syncCustomersRangeMessage, setSyncCustomersRangeMessage] = useState<string | null>(null);
+  const [syncCustomersRangeSuccess, setSyncCustomersRangeSuccess] = useState<boolean | null>(null);
+  const [rangeStartDate, setRangeStartDate] = useState<string>(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-01-01`;
+  });
+  const [rangeEndDate, setRangeEndDate] = useState<string>(() => formatYMD(new Date()));
 
   // Sync all state
   const [syncAllLoading, setSyncAllLoading] = useState(false);
@@ -415,6 +428,68 @@ export default function CustomersPage() {
     }
   };
 
+  // Sync customers by custom date range
+  const syncCustomersDailyRange = async () => {
+    setSyncCustomersRangeLoading(true);
+    setSyncCustomersRangeMessage(null);
+    setSyncCustomersRangeSuccess(null);
+
+    try {
+      if (!rangeStartDate || !rangeEndDate) {
+        throw new Error("Tanggal awal dan akhir wajib diisi");
+      }
+
+      if (new Date(rangeStartDate) > new Date(rangeEndDate)) {
+        throw new Error("Tanggal awal tidak boleh lebih besar dari tanggal akhir");
+      }
+
+      const res = await fetch("/api/sync-customers/daily-range", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_date: rangeStartDate, end_date: rangeEndDate }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSyncCustomersRangeSuccess(true);
+        setSyncCustomersRangeMessage(
+          `✅ Range synced: ${data.days_processed ?? 0} hari | ${
+            data.total_success ?? data.total_processed ?? 0
+          } user`
+        );
+
+        // Refresh customer data after sync
+        const customersRes = await fetch(
+          `/api/cms-customers?page=${page}&limit=${pageSize}&search=${search}&statusFilter=${statusFilter}&appFilter=${appFilter}&referral_partner=${referralPartnerFilter}`,
+          { cache: "no-store" }
+        );
+        if (customersRes.ok) {
+          const customersData = await customersRes.json();
+          setCustomers(customersData.customers || []);
+          setTotalCount(customersData.total_count || 0);
+        }
+
+        // Refresh dashboard data after sync
+        const dashboardRes = await fetch("/api/dashboard");
+        if (dashboardRes.ok) {
+          const dashboardData = await dashboardRes.json();
+          setDashboardData(dashboardData);
+        }
+      } else {
+        setSyncCustomersRangeSuccess(false);
+        setSyncCustomersRangeMessage(`❌ Sync gagal: ${data.error || "Unknown error"}`);
+      }
+    } catch (error) {
+      setSyncCustomersRangeSuccess(false);
+      setSyncCustomersRangeMessage(
+        `❌ Error: ${error instanceof Error ? error.message : "Network error"}`
+      );
+    } finally {
+      setSyncCustomersRangeLoading(false);
+    }
+  };
+
   // Sync all function
   const syncAll = async () => {
     setSyncAllLoading(true);
@@ -592,6 +667,51 @@ export default function CustomersPage() {
                     </>
                   )}
                 </button>
+                <div className="flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-zinc-600" htmlFor="range-start">
+                      Start
+                    </label>
+                    <input
+                      id="range-start"
+                      type="date"
+                      value={rangeStartDate}
+                      onChange={(e) => setRangeStartDate(e.target.value)}
+                      className="rounded border border-zinc-300 px-2 py-1 text-sm focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-zinc-600" htmlFor="range-end">
+                      End
+                    </label>
+                    <input
+                      id="range-end"
+                      type="date"
+                      value={rangeEndDate}
+                      onChange={(e) => setRangeEndDate(e.target.value)}
+                      className="rounded border border-zinc-300 px-2 py-1 text-sm focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                    />
+                  </div>
+                  <button
+                    onClick={syncCustomersDailyRange}
+                    disabled={syncCustomersRangeLoading}
+                    className="inline-flex items-center gap-2 rounded-lg border border-[#1f3c88] bg-[#1f3c88] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#1f3c88]/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {syncCustomersRangeLoading ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        <span>Syncing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span>Sync User Harian</span>
+                      </>
+                    )}
+                  </button>
+                </div>
                 <button
                   onClick={syncUsage}
                   disabled={syncLoading}
@@ -629,6 +749,15 @@ export default function CustomersPage() {
                       : 'bg-red-50 text-red-700 border border-red-200'
                   }`}>
                     {syncAllMessage}
+                  </div>
+                )}
+                {syncCustomersRangeMessage && (
+                  <div className={`text-xs px-2 py-1 rounded ${
+                    syncCustomersRangeSuccess
+                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                      : 'bg-red-50 text-red-700 border border-red-200'
+                  }`}>
+                    {syncCustomersRangeMessage}
                   </div>
                 )}
                 {syncCustomersMessage && (

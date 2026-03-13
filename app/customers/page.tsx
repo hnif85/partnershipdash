@@ -1128,7 +1128,7 @@ export default function CustomersPage() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-sm text-zinc-700">
-                              {formatDate(customer.created_at)}
+                              {customer.created_at ? formatDate(customer.created_at) : ""}
                             </td>
                             <td className="px-4 py-3">
                               {detailId ? (

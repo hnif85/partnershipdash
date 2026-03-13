@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 
@@ -896,6 +897,7 @@ export default function TransactionsPage() {
                   <col className="w-[12%]" />
                   <col className="w-[10%]" />
                   <col className="w-[8%]" />
+                  <col className="w-[8%]" />
                 </colgroup>
                 <thead className="bg-[#f9fafb]">
                   <tr>
@@ -923,10 +925,16 @@ export default function TransactionsPage() {
                     <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
                       Date
                     </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                      Detail
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 bg-white">
-                  {paginated.map((transaction) => (
+                  {paginated.map((transaction) => {
+                    const detailId = transaction.customer_guid || transaction.customer_email || "";
+
+                  return (
                     <tr key={transaction.guid} className="hover:bg-[#f7f8fb]">
                       <td className="px-4 py-3 text-sm text-zinc-700">
                         <div className="font-semibold text-[#1f3c88]">{transaction.invoice_number}</div>
@@ -977,8 +985,21 @@ export default function TransactionsPage() {
                       <td className="px-4 py-3 text-sm text-zinc-700">
                         <div>{formatDate(transaction.created_at)}</div>
                       </td>
+                      <td className="px-4 py-3 text-sm text-zinc-700">
+                        {detailId ? (
+                          <Link
+                            href={`/customers/${encodeURIComponent(detailId)}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[#1f3c88] bg-[#1f3c88] px-3 py-1 text-xs font-medium text-white transition hover:bg-[#1f3c88]/90"
+                          >
+                            Lihat Detail
+                          </Link>
+                        ) : (
+                          <span className="text-xs text-zinc-400">-</span>
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                  );
+                })}
                 </tbody>
               </table>
             </div>

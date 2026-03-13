@@ -9,17 +9,57 @@ const formatDate = (value?: string | null) => {
   return d.toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" });
 };
 
+const buildCustomersBackHref = (searchParams?: { [key: string]: string | string[] | undefined }) => {
+  const qs = new URLSearchParams();
+  if (searchParams) {
+    Object.entries(searchParams).forEach(([key, val]) => {
+      if (Array.isArray(val)) {
+        val.forEach((v) => qs.append(key, v));
+      } else if (typeof val === "string") {
+        qs.append(key, val);
+      }
+    });
+  }
+  const query = qs.toString();
+  return `/customers${query ? `?${query}` : ""}`;
+};
+
 export default async function CustomerDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const { id } = await params;
+  const [paramResult, searchParamsResult] = await Promise.all([
+    params,
+    searchParams ?? Promise.resolve(undefined),
+  ]);
+  const { id } = paramResult;
 
   let customer = null;
   let partners: Awaited<ReturnType<typeof getReferralPartners>> = [];
+  let deliverables: any[] = [];
   try {
-    [customer, partners] = await Promise.all([getCustomerById(id), getReferralPartners()]);
+    const [customerData, partnersData, deliverablesData] = await Promise.all([
+      getCustomerById(id),
+      getReferralPartners(),
+      fetch(
+        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/createwhiz/deliverables/${encodeURIComponent(
+          id,
+        )}`,
+        { cache: "no-store" },
+      ).then(async (res) => {
+        if (!res.ok) {
+          // If deliverables are missing (404) or other error, return empty set silently.
+          return { deliverables: [] };
+        }
+        return res.json();
+      }),
+    ]);
+    customer = customerData;
+    partners = partnersData;
+    deliverables = deliverablesData?.deliverables || [];
   } catch (error) {
     console.error("Customer detail fetch failed", error);
     return (
@@ -61,6 +101,16 @@ export default async function CustomerDetail({
   ]
     .filter(Boolean)
     .join(" • ");
+  const sortedDeliverables =
+    Array.isArray(deliverables) && deliverables.length
+      ? [...deliverables].sort((a, b) => {
+          const timeA =
+            new Date(a?.createdAt || a?.created_at || a?.updatedAt || a?.updated_at || 0).getTime() || 0;
+          const timeB =
+            new Date(b?.createdAt || b?.created_at || b?.updatedAt || b?.updated_at || 0).getTime() || 0;
+          return timeB - timeA;
+        })
+      : [];
 
   const profileFields: Array<{ label: string; value?: string | null; helper?: string | null }> = [
     { label: "Username", value: customer.username },
@@ -104,7 +154,10 @@ export default async function CustomerDetail({
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
       <div className="flex w-full flex-col gap-8 px-6 py-10 lg:px-10 lg:py-14">
         <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600">
-          <Link href="/customers" className="font-semibold text-[#1f3c88] hover:underline">
+          <Link
+            href={buildCustomersBackHref(searchParamsResult)}
+            className="font-semibold text-[#1f3c88] hover:underline"
+          >
             Customers
           </Link>
           <span>/</span>
@@ -203,6 +256,85 @@ export default async function CustomerDetail({
             <p className="mt-3 text-sm text-zinc-600">Belum ada data aplikasi.</p>
           )}
         </section>
+
+        <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-semibold uppercase text-zinc-500">Deliverables (CreateWhiz)</h3>
+            <span className="text-xs font-semibold text-zinc-500">{deliverables.length} item</span>
+          </div>
+          {deliverables.length ? (
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {sortedDeliverables.map((item) => {
+                const preview = item?.thumbnailUrl || item?.fileUrl;
+                const caption =
+                  item?.captionText ||
+                  (Array.isArray(item?.captionHashtags) ? item.captionHashtags.join(" ") : "") ||
+                  "";
+                const hashtagText =
+                  Array.isArray(item?.captionHashtags) && item.captionHashtags.length
+                    ? `#${item.captionHashtags.join(" #")}`
+                    : "";
+                const createdDate = item?.createdAt || item?.created_at || item?.updatedAt || item?.updated_at;
+                return (
+                  <article
+                    key={item?.id || item?.fileUrl}
+                    className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm"
+                  >
+                    {preview ? (
+                      <div className="aspect-[9/16] w-full bg-zinc-100">
+                        <img
+                          src={preview}
+                          alt={item?.title || item?.type || "Preview"}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : null}
+                    <div className="space-y-2 p-3">
+                      <div className="flex items-center justify-between text-xs uppercase text-zinc-500">
+                        <span className="font-semibold">{item?.type || "Unknown"}</span>
+                        {item?.duration ? <span>{item.duration}</span> : null}
+                      </div>
+                      <h4 className="text-sm font-semibold text-[#0f172a]">
+                        {item?.title || "Tanpa judul"}
+                      </h4>
+                      {caption ? <p className="line-clamp-3 text-xs text-zinc-600">{caption}</p> : null}
+                      {hashtagText ? (
+                        <p className="text-[11px] font-semibold text-[#1f3c88]">{hashtagText}</p>
+                      ) : null}
+                      {createdDate ? (
+                        <p className="text-[11px] text-zinc-500">Dibuat: {formatDate(createdDate)}</p>
+                      ) : null}
+                      <div className="flex items-center gap-2 pt-1">
+                        {item?.fileUrl ? (
+                          <Link
+                            href={item.fileUrl}
+                            target="_blank"
+                            className="inline-flex items-center gap-1 rounded-md border border-[#1f3c88] px-2 py-1 text-xs font-semibold text-[#1f3c88] transition hover:bg-[#1f3c88] hover:text-white"
+                          >
+                            Lihat File
+                          </Link>
+                        ) : null}
+                        {item?.thumbnailUrl && item.thumbnailUrl !== item.fileUrl ? (
+                          <Link
+                            href={item.thumbnailUrl}
+                            target="_blank"
+                            className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-1 text-xs font-semibold text-zinc-700 transition hover:bg-zinc-100"
+                          >
+                            Thumbnail
+                          </Link>
+                        ) : null}
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-600">Belum ada deliverables.</p>
+          )}
+        </section>
+
         <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
           <h3 className="text-sm font-semibold uppercase text-zinc-500">Training Data</h3>
           {customer.training_data && customer.training_data.length ? (

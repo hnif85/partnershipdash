@@ -263,7 +263,7 @@ export default function EventsPage() {
                             Edit
                           </Link>
                           <Link
-                            href={`/events/${event.id}/register`}
+                            href={`/public-events/${event.id}/register`}
                             className="text-xs font-medium text-green-600 hover:underline"
                           >
                             Daftar

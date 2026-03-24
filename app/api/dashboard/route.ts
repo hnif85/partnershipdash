@@ -94,10 +94,12 @@ export async function GET(_request: NextRequest) {
       ORDER BY registered_users DESC, fc.referal_code;
     `;
 
-    // 3) Pertumbuhan pembelian per hari (14 hari terakhir)
+    const daysBack = 120; // rentang lebih panjang agar grafik akumulasi cukup panjang
+
+    // 3) Pertumbuhan pembelian per hari (<= daysBack terakhir)
     const dailyPurchasesQuery = `
       WITH date_range AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, '1 day')::date AS date
+        SELECT generate_series(CURRENT_DATE - INTERVAL '${daysBack} days', CURRENT_DATE, '1 day')::date AS date
       ),
       purchases AS (
         SELECT
@@ -122,10 +124,10 @@ export async function GET(_request: NextRequest) {
       ORDER BY d.date;
     `;
 
-    // 4) Penggunaan aplikasi per hari (14 hari terakhir, debit = penggunaan kredit)
+    // 4) Penggunaan aplikasi per hari (<= daysBack terakhir, debit = penggunaan kredit)
     const dailyUsageQuery = `
       WITH date_range AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, '1 day')::date AS date
+        SELECT generate_series(CURRENT_DATE - INTERVAL '${daysBack} days', CURRENT_DATE, '1 day')::date AS date
       ),
       usages AS (
         SELECT
@@ -144,6 +146,24 @@ export async function GET(_request: NextRequest) {
         COALESCE(u.total_amount, 0) AS total_amount
       FROM date_range d
       LEFT JOIN usages u ON d.date = u.date
+      ORDER BY d.date;
+    `;
+
+    // 4b) Registrasi user baru per hari (<= daysBack terakhir)
+    const dailyRegistrationsQuery = `
+      WITH date_range AS (
+        SELECT generate_series(CURRENT_DATE - INTERVAL '${daysBack} days', CURRENT_DATE, '1 day')::date AS date
+      ),
+      registrations AS (
+        SELECT DATE(c.created_at) AS date, COUNT(*) AS new_users
+        FROM cms_customers c
+        LEFT JOIN demo_excluded_emails dee ON c.email = dee.email AND dee.is_active = true
+        WHERE dee.email IS NULL
+        GROUP BY DATE(c.created_at)
+      )
+      SELECT d.date, COALESCE(r.new_users, 0) AS new_users
+      FROM date_range d
+      LEFT JOIN registrations r ON d.date = r.date
       ORDER BY d.date;
     `;
 
@@ -288,6 +308,7 @@ export async function GET(_request: NextRequest) {
       referralStatsRes,
       dailyPurchasesRes,
       dailyUsageRes,
+      dailyRegistrationsRes,
       expiringSoonRes,
       totalCustomersRes,
       expiredUsersRes,
@@ -301,6 +322,7 @@ export async function GET(_request: NextRequest) {
       pool.query(referralStatsQuery),
       pool.query(dailyPurchasesQuery),
       pool.query(dailyUsageQuery),
+      pool.query(dailyRegistrationsQuery),
       pool.query(expiringSoonQuery),
       pool.query(totalCustomersQuery),
       pool.query(expiredUsersQuery),
@@ -328,6 +350,7 @@ export async function GET(_request: NextRequest) {
       referralStats,
       dailyPurchases: dailyPurchasesRes.rows,
       dailyUsage: dailyUsageRes.rows,
+      dailyRegistrations: dailyRegistrationsRes.rows,
       expiringSoonUsers: Number(expiringSoonRes.rows[0]?.expiring_users || 0),
       creditStats: {
         users_with_transactions: Number(usersWithTransactionsRes.rows[0]?.users_with_transactions || 0),

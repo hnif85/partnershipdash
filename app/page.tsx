@@ -28,12 +28,18 @@ type DailyUsage = {
   total_amount: number;
 };
 
+type DailyRegistration = {
+  date: string;
+  new_users: number;
+};
+
 type DashboardData = {
   usersPurchasedIdrFinished: number;
   transactionsPurchasedIdrFinished: number;
   referralStats: ReferralRow[];
   dailyPurchases: DailyPurchase[];
   dailyUsage: DailyUsage[];
+  dailyRegistrations: DailyRegistration[];
   expiringSoonUsers: number;
   creditStats?: {
     users_with_transactions: number;
@@ -169,6 +175,64 @@ const MiniBarChart = ({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+};
+
+const SimpleLineChart = ({
+  data,
+  color,
+  title,
+  valueLabel,
+}: {
+  data: MiniBarDatum[];
+  color: string;
+  title: string;
+  valueLabel: string;
+}) => {
+  if (data.length === 0) return <p className="py-6 text-center text-sm text-zinc-500">Belum ada data.</p>;
+
+  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const points = data.map((d, i) => {
+    const x = (i / Math.max(data.length - 1, 1)) * 100;
+    const y = 100 - (d.value / maxValue) * 90 - 5; // padding atas & bawah
+    return `${x},${y}`;
+  });
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-zinc-600">
+          <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+          <span>{valueLabel}</span>
+        </div>
+        <span className="text-xs uppercase tracking-wide text-zinc-500">{title}</span>
+      </div>
+      <div className="h-64 w-full rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="h-full w-full">
+          <polyline
+            fill="none"
+            stroke={color}
+            strokeWidth={2.5}
+            points={points.join(" ")}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+          />
+          {points.map((pt, idx) => (
+            <circle
+              key={data[idx].label}
+              cx={pt.split(",")[0]}
+              cy={pt.split(",")[1]}
+              r={1.6}
+              fill={color}
+            />
+          ))}
+        </svg>
+        <div className="mt-2 flex justify-between text-[11px] text-zinc-500">
+          <span>{data[0].label}</span>
+          <span>{data[Math.max(data.length - 1, 0)].label}</span>
+        </div>
       </div>
     </div>
   );
@@ -340,13 +404,12 @@ export default function Dashboard() {
   // Sync customers incremental: H-1 dari last created_at hingga hari ini (00:00-23:59)
   const handleSyncUsers = () =>
     runSync(
-      "/api/sync-customers/v2",
+      "/api/sync-user/v3",
       setSyncUserState,
-      (data) => `${data.success_count ?? data.total_processed ?? 0} customer baru`,
-      {
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ incremental: true }),
-      }
+      (data) =>
+        `${data.success_count ?? data.total_synced ?? data.total_processed ?? 0} customer baru (dari ${
+          data.start_date ?? "N/A"
+        } s/d ${data.end_date ?? "N/A"})`
     );
 
   const handleSyncTransactions = () =>
@@ -377,14 +440,24 @@ export default function Dashboard() {
     }));
   }, [data?.dailyPurchases]);
 
-  const purchaseOnlyChartData: MiniBarDatum[] = useMemo(() => {
-    if (purchaseChartData.length === 0) return [];
-    return purchaseChartData.map((row) => ({ label: row.label, value: row.value }));
-  }, [purchaseChartData]);
+  const purchaseChartData14 = useMemo(
+    () => (purchaseChartData.length > 0 ? purchaseChartData.slice(-14) : []),
+    [purchaseChartData]
+  );
+
+  const purchaseOnlyDaily: MiniBarDatum[] = useMemo(() => {
+    if (purchaseChartData14.length === 0) return [];
+    return purchaseChartData14.map((row) => ({ label: row.label, value: row.value }));
+  }, [purchaseChartData14]);
+
+  const purchaseOnlyAll: MiniBarDatum[] = useMemo(
+    () => purchaseChartData.map((row) => ({ label: row.label, value: row.value })),
+    [purchaseChartData]
+  );
 
   const purchaseCumulativeChartData = useMemo(
-    () => buildCumulativeData(purchaseOnlyChartData),
-    [purchaseOnlyChartData]
+    () => buildCumulativeData(purchaseOnlyAll),
+    [purchaseOnlyAll]
   );
 
   const totalTransactions = useMemo(
@@ -405,6 +478,11 @@ export default function Dashboard() {
     }));
   }, [data?.dailyUsage]);
 
+  const usageCreditChartData14 = useMemo(
+    () => (usageCreditChartData.length > 0 ? usageCreditChartData.slice(-14) : []),
+    [usageCreditChartData]
+  );
+
   const usageCreditCumulativeChartData = useMemo(
     () => buildCumulativeData(usageCreditChartData),
     [usageCreditChartData]
@@ -418,9 +496,32 @@ export default function Dashboard() {
     }));
   }, [data?.dailyUsage]);
 
+  const usageUniqueUsersChartData14 = useMemo(
+    () => (usageUniqueUsersChartData.length > 0 ? usageUniqueUsersChartData.slice(-14) : []),
+    [usageUniqueUsersChartData]
+  );
+
   const usageUniqueUsersCumulativeChartData = useMemo(
     () => buildCumulativeData(usageUniqueUsersChartData),
     [usageUniqueUsersChartData]
+  );
+
+  const registrationChartData: MiniBarDatum[] = useMemo(() => {
+    if (!data?.dailyRegistrations) return [];
+    return data.dailyRegistrations.map((row) => ({
+      label: formatShortDate(row.date),
+      value: row.new_users,
+    }));
+  }, [data?.dailyRegistrations]);
+
+  const registrationCumulativeChartData = useMemo(
+    () => buildCumulativeData(registrationChartData),
+    [registrationChartData]
+  );
+
+  const purchaseCumulativeLongChartData = useMemo(
+    () => buildCumulativeData(purchaseChartData.map((row) => ({ label: row.label, value: row.value }))),
+    [purchaseChartData]
   );
 
   const totalUsageCredits = useMemo(
@@ -812,7 +913,7 @@ export default function Dashboard() {
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data transaksi 14 hari terakhir.</p>
                     ) : (
                     <MiniBarChart
-                      data={purchaseMode === "daily" ? purchaseOnlyChartData : purchaseCumulativeChartData}
+                      data={purchaseMode === "daily" ? purchaseOnlyDaily : purchaseCumulativeChartData}
                       color="#1f3c88"
                       title="Transaksi"
                       valueLabel="Transaksi"
@@ -832,11 +933,11 @@ export default function Dashboard() {
                       <ModeToggle mode={usageCreditMode} onChange={setUsageCreditMode} />
                     </div>
                   </div>
-                  {usageCreditChartData.length === 0 ? (
+                  {usageCreditChartData14.length === 0 ? (
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data penggunaan 14 hari terakhir.</p>
                   ) : (
                     <MiniBarChart
-                      data={usageCreditMode === "daily" ? usageCreditChartData : usageCreditCumulativeChartData}
+                      data={usageCreditMode === "daily" ? usageCreditChartData14 : usageCreditCumulativeChartData}
                       color="#0f5132"
                       title="Usage (Credit)"
                       valueLabel="Total Credit"
@@ -855,13 +956,13 @@ export default function Dashboard() {
                       <ModeToggle mode={usageUserMode} onChange={setUsageUserMode} />
                     </div>
                   </div>
-                  {usageUniqueUsersChartData.length === 0 ? (
+                  {usageUniqueUsersChartData14.length === 0 ? (
                     <p className="py-6 text-center text-sm text-zinc-500">Belum ada data user unik 14 hari terakhir.</p>
                   ) : (
                     <MiniBarChart
                       data={
                         usageUserMode === "daily"
-                          ? usageUniqueUsersChartData
+                          ? usageUniqueUsersChartData14
                           : usageUniqueUsersCumulativeChartData
                       }
                       color="#f97316"
@@ -871,6 +972,8 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+
+             
 
               <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-col gap-1 border-b border-zinc-200 pb-4">

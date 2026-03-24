@@ -8,11 +8,22 @@ import {
   formatNumber,
   otherActivityCard,
   type ActivityCard,
+  type Activity,
 } from "./data";
 
 export default function ActivityTargets() {
   // 1. Mencegah Hydration Error untuk tanggal
   const [formattedDate, setFormattedDate] = useState<string>("");
+  const baseActivityCards: ActivityCard[] = [
+    ...activities.map((item) => ({
+      ...item,
+      hasTarget: item.hasTarget ?? true,
+      link: item.link ?? true,
+    })),
+    otherActivityCard,
+  ];
+  const [activityCards, setActivityCards] = useState<ActivityCard[]>(baseActivityCards);
+  const [loading, setLoading] = useState<boolean>(false);
 
   useEffect(() => {
     const today = new Date();
@@ -25,20 +36,40 @@ export default function ActivityTargets() {
     );
   }, []);
 
-  // 2. Kalkulasi Data Dinamis
-  const totalTarget = activities.reduce((sum, item) => sum + (item.target || 0), 0);
-  const totalAchieved = activities.reduce((sum, item) => sum + (item.achieved || 0), 0);
-  const totalDelta = activities.reduce((sum, item) => sum + (item.weekDelta || 0), 0); // Menghitung total penambahan minggu ini
-  const totalProgress = computeProgress(totalAchieved, totalTarget);
+  useEffect(() => {
+    const fetchLiveActivities = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/activity-target", { cache: "no-store" });
+        if (!res.ok) throw new Error(`Failed to fetch activities (${res.status})`);
+        const data: { activities: Activity[] } = await res.json();
+        const merged: ActivityCard[] = [
+          ...data.activities.map((item) => ({
+            ...item,
+            hasTarget: item.hasTarget ?? true,
+            link: item.link ?? true,
+          })),
+          otherActivityCard,
+        ];
+        setActivityCards(merged);
+      } catch (err) {
+        console.error("Load live activities failed:", err);
+        setActivityCards(baseActivityCards);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLiveActivities();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const activityCards: ActivityCard[] = [
-    ...activities.map((item) => ({
-      ...item,
-      hasTarget: item.hasTarget ?? true,
-      link: item.link ?? true,
-    })),
-    otherActivityCard,
-  ];
+  // 2. Kalkulasi Data Dinamis
+  const totalTarget = activityCards
+    .filter((item) => item.slug !== "other")
+    .reduce((sum, item) => sum + (item.target || 0), 0);
+  const totalAchieved = activityCards.reduce((sum, item) => sum + (item.achieved || 0), 0);
+  const totalDelta = activityCards.reduce((sum, item) => sum + (item.weekDelta || 0), 0); // Menghitung total penambahan minggu ini
+  const totalProgress = computeProgress(totalAchieved, totalTarget);
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
@@ -95,7 +126,7 @@ export default function ActivityTargets() {
               </p>
               {/* Perbaikan: Delta dinamis */}
               <p className="text-sm text-zinc-600">
-                Terdapat penambahan 21 di transaksi minggu ini.
+                Terdapat penambahan {formatNumber(totalDelta)} di transaksi minggu ini.
               </p>
               <p className="text-sm text-zinc-600">
                 Terkini dari laporan per {formattedDate || "hari ini"}. 

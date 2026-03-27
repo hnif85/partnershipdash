@@ -604,7 +604,7 @@ export default function TransactionsPage() {
               }`}
               type="button"
             >
-              {syncStatus === "syncing" ? "Sedang Sinkron..." : "Sinkron Semua"}
+              {syncStatus === "syncing" ? "Sedang Sinkron..." : "Singkron"}
             </button>
             <button
               onClick={handleExportToXLS}
@@ -821,7 +821,7 @@ export default function TransactionsPage() {
                 />
               </div>
               <button
-                onClick={() => handleSyncTransactions(true)}
+                onClick={() => handleSyncTransactions(false)}
                 disabled={syncStatus === "syncing"}
                 className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
                   syncStatus === "syncing"
@@ -830,7 +830,7 @@ export default function TransactionsPage() {
                 }`}
                 type="button"
               >
-                Sinkron Semua
+                Singkron
               </button>
 
               {syncStatus !== "idle" && (

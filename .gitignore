@@ -86,3 +86,4 @@ docs/schema.sql
 plans/event_management_spec.md
 docs/schema.sql
 docs/functions_summary.md
+logs/sync-transactions.log

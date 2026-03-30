@@ -41,9 +41,13 @@ export default async function CustomerDetail({
   let partners: Awaited<ReturnType<typeof getReferralPartners>> = [];
   let deliverables: any[] = [];
   try {
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.APP_BASE_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
+      "";
     const deliverablePath = `/api/createwhiz/deliverables/${encodeURIComponent(id)}`;
-    const deliverableUrl = baseUrl ? `${baseUrl}${deliverablePath}` : deliverablePath;
+    const deliverableUrl = new URL(deliverablePath, baseUrl || "http://localhost:3000").toString();
 
     const [customerData, partnersData, deliverablesData] = await Promise.all([
       getCustomerById(id),

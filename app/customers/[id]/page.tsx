@@ -41,15 +41,16 @@ export default async function CustomerDetail({
   let partners: Awaited<ReturnType<typeof getReferralPartners>> = [];
   let deliverables: any[] = [];
   try {
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+    const deliverablePath = `/api/createwhiz/deliverables/${encodeURIComponent(id)}`;
+    const deliverableUrl = baseUrl ? `${baseUrl}${deliverablePath}` : deliverablePath;
+
     const [customerData, partnersData, deliverablesData] = await Promise.all([
       getCustomerById(id),
       getReferralPartners(),
-      fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/createwhiz/deliverables/${encodeURIComponent(
-          id,
-        )}`,
-        { cache: "no-store" },
-      ).then(async (res) => {
+      fetch(deliverableUrl, {
+        cache: "no-store",
+      }).then(async (res) => {
         if (!res.ok) {
           // If deliverables are missing (404) or other error, return empty set silently.
           return { deliverables: [] };

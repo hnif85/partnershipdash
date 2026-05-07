@@ -62,7 +62,6 @@ export async function POST(
     let isNewUser = false;
 
     if (!customerExists) {
-      // Create new customer
       await createCustomer({
         full_name: body.full_name,
         email: body.email,
@@ -79,6 +78,18 @@ export async function POST(
       phone_number: body.phone_number,
       email: body.email,
       business_name: body.business_name,
+      city: body.city,
+      business_since_year: body.business_since_year ? parseInt(body.business_since_year) : undefined,
+      team_size: body.team_size ? parseInt(body.team_size) : undefined,
+      business_line: body.business_line,
+      monthly_net_profit: body.monthly_net_profit,
+      has_separate_account: body.has_separate_account,
+      brand_assets: body.brand_assets,
+      profit_allocation: body.profit_allocation,
+      main_focus: body.main_focus,
+      subscription_consideration: body.subscription_consideration,
+      whiz_solution_needed: body.whiz_solution_needed,
+      referral_source: body.referral_source,
     });
 
     return NextResponse.json({

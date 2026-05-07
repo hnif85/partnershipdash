@@ -13,6 +13,19 @@ export type EventRegistrationRow = {
   registered_at?: string;
   confirmed_at?: string;
   notes?: string;
+  // PRD fields
+  city?: string;
+  business_since_year?: number;
+  team_size?: number;
+  business_line?: string;
+  monthly_net_profit?: string;
+  has_separate_account?: string;
+  brand_assets?: string[];
+  profit_allocation?: string;
+  main_focus?: string;
+  subscription_consideration?: string;
+  whiz_solution_needed?: string;
+  referral_source?: string;
 };
 
 export type RegistrationWithEvent = {
@@ -164,6 +177,18 @@ export async function createRegistration(registration: {
   business_name?: string;
   status?: EventStatus;
   notes?: string;
+  city?: string;
+  business_since_year?: number;
+  team_size?: number;
+  business_line?: string;
+  monthly_net_profit?: string;
+  has_separate_account?: string;
+  brand_assets?: string[];
+  profit_allocation?: string;
+  main_focus?: string;
+  subscription_consideration?: string;
+  whiz_solution_needed?: string;
+  referral_source?: string;
 }): Promise<EventRegistrationRow> {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is not configured");
@@ -171,8 +196,11 @@ export async function createRegistration(registration: {
 
   const result = await pool.query<EventRegistrationRow>(
     `INSERT INTO event_registrations (
-      event_id, full_name, phone_number, email, business_name, status, notes, registered_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      event_id, full_name, phone_number, email, business_name, status, notes, registered_at,
+      city, business_since_year, team_size, business_line,
+      monthly_net_profit, has_separate_account, brand_assets, profit_allocation,
+      main_focus, subscription_consideration, whiz_solution_needed, referral_source
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     RETURNING *`,
     [
       registration.event_id,
@@ -182,6 +210,18 @@ export async function createRegistration(registration: {
       registration.business_name || null,
       registration.status || 'registered',
       registration.notes || null,
+      registration.city || null,
+      registration.business_since_year || null,
+      registration.team_size || null,
+      registration.business_line || null,
+      registration.monthly_net_profit || null,
+      registration.has_separate_account || null,
+      registration.brand_assets || null,
+      registration.profit_allocation || null,
+      registration.main_focus || null,
+      registration.subscription_consideration || null,
+      registration.whiz_solution_needed || null,
+      registration.referral_source || null,
     ]
   );
 

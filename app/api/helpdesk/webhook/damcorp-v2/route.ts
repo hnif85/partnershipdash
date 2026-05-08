@@ -3,6 +3,7 @@ import { pool } from "@/lib/database";
 import { ensureCrmSchema } from "@/lib/crmSchema";
 import { sendDamcorpText } from "@/lib/damcorpWhatsapp";
 import { generateAIReply, calculateLeadScore } from "@/lib/aiChat";
+import { detectAndStoreEmail } from "@/lib/helpdeskEmail";
 
 async function runAIReply(conversationId: number, inboundText: string, phoneNumber: string, contextJson: any, conversationHistory: any[] = []) {
   const context = {
@@ -142,14 +143,18 @@ export async function POST(request: NextRequest) {
         [conversationId]
       );
 
+      // Detect and store email if present
+      await detectAndStoreEmail(conversationId, textBody);
+
       const convResult = await pool.query<any>(
-        "SELECT bot_enabled, bot_paused_until, conversation_context_json FROM helpdesk_conversations_v2 WHERE id = $1",
+        "SELECT bot_enabled, bot_paused_until, conversation_context_json, customer_email FROM helpdesk_conversations_v2 WHERE id = $1",
         [conversationId]
       );
       const conv = convResult.rows[0];
       const botEnabled = conv?.bot_enabled ?? true;
       const pausedUntil = conv?.bot_paused_until ? new Date(conv.bot_paused_until).getTime() : 0;
       const currentContext = conv?.conversation_context_json || {};
+      currentContext.customerEmail = conv?.customer_email || null;
 
       // Get recent conversation history first
       const messagesResult = await pool.query<any>(

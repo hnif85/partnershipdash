@@ -153,6 +153,7 @@ export async function ensureCrmSchema(): Promise<void> {
       provider TEXT NOT NULL DEFAULT 'watzap' CHECK (provider IN ('watzap', 'damcorp')),
       phone_number TEXT NOT NULL,
       customer_name TEXT,
+      customer_email TEXT,
       customer_data_json JSONB DEFAULT '{}'::jsonb,
       status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'pending', 'resolved', 'escalated')),
       assigned_to TEXT,

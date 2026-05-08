@@ -35,6 +35,18 @@ type LeadStats = {
   unread: number;
 };
 
+type FollowUpData = {
+  conversationId: number;
+  customerName: string;
+  phoneNumber: string;
+  lastMessageAt: string;
+  totalMessages: number;
+  summary: string;
+  painPoints: string[];
+  lastIntent: string | null;
+  suggestedFollowUp: string | null;
+};
+
 export default function HelpdeskV2() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null);
@@ -47,6 +59,16 @@ export default function HelpdeskV2() {
   const [providerFilter, setProviderFilter] = useState<string>("all");
   const [stats, setStats] = useState<LeadStats>({ hot: 0, warm: 0, medium: 0, cold: 0, total: 0, unread: 0 });
   const [providerStats, setProviderStats] = useState<{ watzap: number; damcorp: number; total: number }>({ watzap: 0, damcorp: 0, total: 0 });
+  
+  // Follow-up state
+  const [showFollowUp, setShowFollowUp] = useState(false);
+  const [inactiveConvs, setInactiveConvs] = useState<any[]>([]);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
+  const [followUpData, setFollowUpData] = useState<FollowUpData | null>(null);
+  const [selectedInactiveId, setSelectedInactiveId] = useState<number | null>(null);
+  const [editMessage, setEditMessage] = useState("");
+  const [sendingFollowUp, setSendingFollowUp] = useState(false);
+
   const unreadFilterRef = useRef(unreadFilter);
   unreadFilterRef.current = unreadFilter;
 
@@ -162,6 +184,55 @@ export default function HelpdeskV2() {
     } catch (error) {
       console.error("Failed to resolve conversation:", error);
     }
+  };
+
+  const fetchInactiveConversations = async () => {
+    setFollowUpLoading(true);
+    try {
+      const res = await fetch("/api/helpdesk/follow-up");
+      const data = await res.json();
+      setInactiveConvs(data.conversations || []);
+    } catch (error) {
+      console.error("Failed to fetch inactive:", error);
+    }
+    setFollowUpLoading(false);
+  };
+
+  const loadFollowUpPreview = async (convId: number) => {
+    setFollowUpLoading(true);
+    setSelectedInactiveId(convId);
+    try {
+      const res = await fetch("/api/helpdesk/follow-up", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: convId, action: "generate" })
+      });
+      const data = await res.json();
+      setFollowUpData(data);
+      setEditMessage(data.suggestedFollowUp || "");
+    } catch (error) {
+      console.error("Failed to load follow-up:", error);
+    }
+    setFollowUpLoading(false);
+  };
+
+  const sendFollowUpMessage = async () => {
+    if (!followUpData || !editMessage.trim()) return;
+    setSendingFollowUp(true);
+    try {
+      await fetch("/api/helpdesk/follow-up", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversation_id: followUpData.conversationId, message: editMessage, send: true })
+      });
+      alert("Follow-up berhasil dikirim!");
+      setShowFollowUp(false);
+      setFollowUpData(null);
+      setSelectedInactiveId(null);
+    } catch (error) {
+      console.error("Failed to send follow-up:", error);
+    }
+    setSendingFollowUp(false);
   };
 
   const getLeadColor = (category: string) => {
@@ -353,6 +424,13 @@ export default function HelpdeskV2() {
               </div>
               <div className="flex gap-2">
                 <button
+                  onClick={() => { setShowFollowUp(true); fetchInactiveConversations(); }}
+                  className="px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 bg-amber-500 text-white hover:bg-amber-600 shadow-md"
+                >
+                  <span className="text-base">🔔</span>
+                  Follow-up
+                </button>
+                <button
                   onClick={() => toggleBot(selectedConv)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
                     selectedConv.bot_enabled
@@ -424,6 +502,132 @@ export default function HelpdeskV2() {
           </div>
         )}
       </div>
+
+      {/* Follow-up Modal */}
+      {showFollowUp && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-[900px] max-h-[80vh] flex overflow-hidden">
+            {/* Left - Inactive List */}
+            <div className="w-1/3 border-r border-gray-200 flex flex-col">
+              <div className="p-4 border-b border-gray-200 bg-amber-50">
+                <h3 className="font-bold text-gray-800">Percakapan Tidak Aktif</h3>
+                <p className="text-xs text-gray-500">Berhasil &gt; 8 jam lalu</p>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {followUpLoading && inactiveConvs.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">Loading...</div>
+                ) : inactiveConvs.length === 0 ? (
+                  <div className="p-4 text-center text-gray-500">Tidak ada percakapan tidak aktif</div>
+                ) : (
+                  inactiveConvs.map((conv) => (
+                    <div
+                      key={conv.id}
+                      onClick={() => loadFollowUpPreview(conv.id)}
+                      className={`p-3 border-b border-gray-100 cursor-pointer hover:bg-amber-50 ${
+                        selectedInactiveId === conv.id ? "bg-amber-100 border-l-4 border-l-amber-500" : ""
+                      }`}
+                    >
+                      <div className="font-medium text-gray-900 text-sm">
+                        {conv.customerName || conv.phoneNumber}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        Terakhir: {new Date(conv.lastMessageAt).toLocaleString("id-ID")}
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">Status: {conv.status}</div>
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="p-3 border-t border-gray-200">
+                <button
+                  onClick={() => { setShowFollowUp(false); setFollowUpData(null); setSelectedInactiveId(null); }}
+                  className="w-full py-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-100"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+
+            {/* Right - Follow-up Detail */}
+            <div className="w-2/3 flex flex-col">
+              {followUpData ? (
+                <>
+                  <div className="p-4 border-b border-gray-200 bg-amber-50">
+                    <h3 className="font-bold text-gray-800">Follow-up untuk: {followUpData.customerName}</h3>
+                    <p className="text-xs text-gray-500">{followUpData.phoneNumber}</p>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {/* Summary */}
+                    <div className="bg-gray-50 rounded-lg p-3">
+                      <div className="text-xs font-semibold text-gray-600 mb-1">RINGKASAN PERCAKAPAN</div>
+                      <div className="text-sm text-gray-800">{followUpData.summary}</div>
+                    </div>
+
+                    {/* Pain Points */}
+                    {followUpData.painPoints && followUpData.painPoints.length > 0 && (
+                      <div className="bg-red-50 rounded-lg p-3">
+                        <div className="text-xs font-semibold text-red-600 mb-1">PAIN POINTS</div>
+                        <div className="flex flex-wrap gap-1">
+                          {followUpData.painPoints.map((pp, i) => (
+                            <span key={i} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">
+                              {pp}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Last Intent */}
+                    {followUpData.lastIntent && (
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <div className="text-xs font-semibold text-blue-600 mb-1">INTENT TERAKHIR</div>
+                        <div className="text-sm text-blue-800">{followUpData.lastIntent}</div>
+                      </div>
+                    )}
+
+                    {/* Edit Message */}
+                    <div>
+                      <div className="text-xs font-semibold text-gray-600 mb-1">PESAN FOLLOW-UP</div>
+                      <textarea
+                        value={editMessage}
+                        onChange={(e) => setEditMessage(e.target.value)}
+                        className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500"
+                        rows={4}
+                        placeholder="Tulis pesan follow-up..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="p-4 border-t border-gray-200 flex gap-2">
+                    <button
+                      onClick={() => loadFollowUpPreview(followUpData.conversationId)}
+                      disabled={followUpLoading}
+                      className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 text-sm"
+                    >
+                      {followUpLoading ? "Generating..." : "Regenerate"}
+                    </button>
+                    <button
+                      onClick={sendFollowUpMessage}
+                      disabled={sendingFollowUp || !editMessage.trim()}
+                      className="flex-1 px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 text-sm font-medium disabled:opacity-50"
+                    >
+                      {sendingFollowUp ? "Mengirim..." : "Kirim Follow-up"}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <div className="text-4xl mb-2">👈</div>
+                    <div>Pilih percakapan untuk dilihat</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

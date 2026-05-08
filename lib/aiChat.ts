@@ -190,6 +190,8 @@ ${historyText}
 
 ${productKnowledge ? "\n// =========================================\n// PRODUCT KNOWLEDGE\n// =========================================\n" + productKnowledge + "\n// =========================================\n" : ""}
 
+${!context?.customerEmail ? "\n// =========================================\n// COLLECT EMAIL\n// =========================================\nCustomer ini belum menyediakan email. Jika ada kesempatan, minta email dengan sopan.\n" : ""}
+
 Instruksi PENTING:
   1. PASTI INGAT konteks percakapan sebelumnya! Jika customer mengulang pertanyaan atau bilang "seperti tadi", "ya seperti yang tadi tanya", langsung jawab tanpa perlu meminta klarifikasi lagi
   2. Jawab dengan ringkas dan padat (maksimal 3 kalimat)

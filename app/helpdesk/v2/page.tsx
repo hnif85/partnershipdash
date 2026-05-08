@@ -133,15 +133,18 @@ export default function HelpdeskV2() {
 
   const toggleBot = async (conv: Conversation) => {
     try {
+      const newEnabled = !conv.bot_enabled;
       await fetch("/api/helpdesk/v2/toggle-bot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversation_id: conv.id,
-          enabled: !conv.bot_enabled,
+          enabled: newEnabled,
         }),
       });
-      fetchConversations();
+      // Update local state immediately
+      setSelectedConv({ ...conv, bot_enabled: newEnabled });
+      setConversations(convs => convs.map(c => c.id === conv.id ? { ...c, bot_enabled: newEnabled } : c));
     } catch (error) {
       console.error("Failed to toggle bot:", error);
     }
@@ -351,13 +354,14 @@ export default function HelpdeskV2() {
               <div className="flex gap-2">
                 <button
                   onClick={() => toggleBot(selectedConv)}
-                  className={`px-3 py-1 rounded text-sm ${
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-all ${
                     selectedConv.bot_enabled
-                      ? "bg-green-100 text-green-700 hover:bg-green-200"
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      ? "bg-green-500 text-white hover:bg-green-600 shadow-md"
+                      : "bg-red-500 text-white hover:bg-red-600 shadow-md"
                   }`}
                 >
-                  🤖 {selectedConv.bot_enabled ? "AI On" : "AI Off"}
+                  <span className="text-base">{selectedConv.bot_enabled ? "🤖" : "⏸️"}</span>
+                  {selectedConv.bot_enabled ? "AI Aktif" : "AI Mati"}
                 </button>
               </div>
             </div>

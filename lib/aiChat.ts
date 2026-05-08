@@ -104,6 +104,11 @@ export async function generateAIReply(
   context: ConversationContext,
   customerData?: Record<string, any>
 ): Promise<AIReplyResult> {
+  console.log("=== generateAIReply START ===");
+  console.log("message:", message);
+  console.log("context.turnCount:", context?.turnCount);
+  console.log("context.currentIntent:", context?.currentIntent);
+  
   try {
     const kb = await loadKnowledgeBase();
     const defaultPersona = kb.personas.default || {
@@ -188,6 +193,10 @@ Instruksi PENTING:
   5. JANGAN pernah memperkenalkan diri lagi jika sudah ada percakapan sebelumnya
   6. Tutup dengan sopan dan tawarkan bantuan lain
   7. Di akhir respons, tambahkan: [INTENT: nama_intent]`;
+
+    console.log("=== CALLING AI API ===");
+    console.log("AI_URL:", AI_URL);
+    console.log("systemPrompt length:", systemPrompt.length);
 
 const response = await fetch(AI_URL, {
       method: "POST",

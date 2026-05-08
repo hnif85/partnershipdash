@@ -5,6 +5,10 @@ import { sendDamcorpText } from "@/lib/damcorpWhatsapp";
 import { generateAIReply, calculateLeadScore } from "@/lib/aiChat";
 
 async function runAIReply(conversationId: number, inboundText: string, phoneNumber: string, contextJson: any, conversationHistory: any[] = []) {
+  console.log("=== runAIReply START ===");
+  console.log("inboundText:", inboundText);
+  console.log("conversationHistory:", conversationHistory);
+
   const context = {
     currentIntent: contextJson?.currentIntent || undefined,
     flowName: contextJson?.flowName || undefined,
@@ -15,7 +19,9 @@ async function runAIReply(conversationId: number, inboundText: string, phoneNumb
     conversationHistory: conversationHistory.slice(-6), // Last 6 messages for context
   };
 
+  console.log("Calling generateAIReply...");
   const result = await generateAIReply(inboundText, context);
+  console.log("generateAIReply result:", result);
 
   if (result.reply) {
     try {
@@ -59,26 +65,38 @@ export async function GET(request: NextRequest) {
   const challenge = request.nextUrl.searchParams.get("hub.challenge");
   const expectedToken = process.env.DAMCORP_WEBHOOK_VERIFY_TOKEN;
 
+  console.log("=== WEBHOOK GET VERIFY ===");
+  console.log("mode:", mode);
+  console.log("token:", token);
+  console.log("expectedToken exists:", !!expectedToken);
+
   if (mode === "subscribe" && challenge && expectedToken && token === expectedToken) {
+    console.log("Verify success - returning challenge");
     return new NextResponse(challenge, { status: 200 });
   }
 
   const simpleToken = request.nextUrl.searchParams.get("verify_token");
   const simpleChallenge = request.nextUrl.searchParams.get("challenge");
+  console.log("simpleToken:", simpleToken);
+  console.log("simpleChallenge:", simpleChallenge);
+  
   if (simpleChallenge && expectedToken && simpleToken === expectedToken) {
+    console.log("Simple verify success");
     return new NextResponse(simpleChallenge, { status: 200 });
   }
 
+  console.log("=== VERIFY FAILED ===");
   return NextResponse.json({ ok: false, error: "Webhook verification failed" }, { status: 403 });
 }
 
 export async function POST(request: NextRequest) {
+  console.log("=== DAMPORP WEBHOOK POST CALLED ===");
   try {
     await ensureCrmSchema();
     const payload = await request.json();
 
     console.log("=== DAMPORP WEBHOOK (V2 FLOW) ===");
-    console.log(JSON.stringify(payload).substring(0, 1000));
+    console.log("Full payload:", JSON.stringify(payload).substring(0, 1500));
 
     const eventId = payload?.id || payload?.entry?.[0]?.id || null;
     const message = payload?.messages?.[0] || payload?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
@@ -108,6 +126,13 @@ export async function POST(request: NextRequest) {
       const phone = message.from.startsWith("+") ? message.from : `+${message.from}`;
       const textBody = message?.text?.body || "";
       const messageId = message?.id || null;
+      
+      console.log("=== MESSAGE DETAILS ===");
+      console.log("phone:", phone);
+      console.log("textBody:", textBody);
+      console.log("textBody.trim():", textBody.trim());
+      console.log("textBody.length:", textBody.length);
+      
       const contacts = payload?.contacts || [];
       const contact = contacts.find((c: any) => c.wa_id === message.from);
       const customerName = contact?.profile?.name || message?.profile?.name || null;
@@ -171,9 +196,18 @@ export async function POST(request: NextRequest) {
         text: m.text_body,
       }));
 
+      console.log("=== AI CHECK ===");
+      console.log("botEnabled:", botEnabled);
+      console.log("textBody:", textBody);
+      console.log("pausedUntil:", pausedUntil);
+      console.log("now:", Date.now());
+      console.log("condition:", botEnabled && textBody.trim() && (!pausedUntil || pausedUntil < Date.now()));
+
       if (botEnabled && textBody.trim() && (!pausedUntil || pausedUntil < Date.now())) {
         try {
+          console.log("=== RUNNING AI REPLY ===");
           await runAIReply(conversationId, textBody, phone, currentContext, recentMessages);
+          console.log("=== AI REPLY DONE ===");
         } catch (err) {
           console.error("AI reply error:", err);
         }

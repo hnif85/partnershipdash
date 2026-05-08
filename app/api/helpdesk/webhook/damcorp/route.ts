@@ -27,6 +27,15 @@ async function runAIReply(conversationId: number, inboundText: string, phoneNumb
     try {
       const sendResult = await sendDamcorpText(phoneNumber, result.reply);
 
+      // Prepare payload with token usage
+      const payload = {
+        ...(sendResult.raw || {}),
+        token_usage: result.tokenUsage || null
+      };
+
+      console.log("=== STORING MESSAGE WITH TOKEN USAGE ===");
+      console.log("tokenUsage:", result.tokenUsage);
+
       await pool.query(
         `INSERT INTO helpdesk_messages_v2 
           (conversation_id, direction, sender_type, message_type, text_body, intent_detected, wa_message_id, delivery_status, payload_json)
@@ -36,7 +45,7 @@ async function runAIReply(conversationId: number, inboundText: string, phoneNumb
           result.reply,
           result.intent,
           sendResult.waMessageId || null,
-          JSON.stringify(sendResult.raw || {}),
+          JSON.stringify(payload),
         ]
       );
 

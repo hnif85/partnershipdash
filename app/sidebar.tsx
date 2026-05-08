@@ -22,7 +22,7 @@ const menuConfig = {
     { href: "/referral", label: "Referral", tag: "Analytics" },
     { href: "/events", label: "Events", tag: "Events" },
     { href: "/crm", label: "CRM", tag: "Engagement" },
-    { href: "/helpdesk/v2", label: "AI Helpdesk", tag: "Support" },
+    //{ href: "/helpdesk/v2", label: "AI Helpdesk", tag: "Support" },
     { href: "/setting/users", label: "User Management", tag: "Settings" },
     { href: "/setting/excludeMail", label: "Excluded Emails", tag: "Settings" },
   ],
@@ -33,17 +33,17 @@ const menuConfig = {
     { href: "/sales", label: "Sales", tag: "Finance" },
     { href: "/referral", label: "Referral", tag: "Analytics" },
     { href: "/events", label: "Events", tag: "Events" },
-    { href: "/helpdesk/v2", label: "AI Helpdesk", tag: "Support" },
+    //{ href: "/helpdesk/v2", label: "AI Helpdesk", tag: "Support" },
   ],
   crm: [
-    { href: "/", label: "Dashboard", tag: "Overview" },
-    { href: "/crm", label: "CRM", tag: "Engagement" },
+    //{ href: "/", label: "Dashboard", tag: "Overview" },
+    { href: "/crm", label: "Dashboard", tag: "Engagement" },
     { href: "/helpdesk/v2", label: "AI Helpdesk", tag: "Support" },
   ],
 };
 
 const crmItems = [
-  { href: "/crm/responses", label: "WhatsApp Inbox" },
+  //{ href: "/helpdesk/v2", label: "WhatsApp Inbox" },
   { href: "/crm/campaigns", label: "Campaigns" },
   { href: "/crm/auto-replies", label: "Auto Replies" },
   { href: "/crm/knowledge", label: "Knowledge Base" },

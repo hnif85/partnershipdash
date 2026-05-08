@@ -149,7 +149,7 @@ export default function CrmPage() {
 
   const cards = [
     { href: "/crm/campaigns", title: "Campaigns", desc: "Kirim broadcast segmented (send now) dan monitor hasil pengiriman.", tag: "Outbound" },
-    { href: "/crm/responses", title: "Helpdesk Inbox", desc: "Kelola percakapan WhatsApp, takeover manual, dan status bot.", tag: "Support" },
+    { href: "/helpdesk/v2", title: "Helpdesk Inbox", desc: "Kelola percakapan WhatsApp, takeover manual, dan status bot.", tag: "Support" },
     { href: "/crm/auto-replies", title: "Auto Replies", desc: "Atur rule keyword dan outside office hours untuk auto response.", tag: "Automation" },
   ];
 
@@ -257,7 +257,7 @@ export default function CrmPage() {
             ) : (
               <>
                 {/* Overview Cards */}
-                <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
+                <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-6">
                   <div className="rounded-lg bg-blue-50 p-4">
                     <p className="text-xs font-medium uppercase text-blue-600">Total</p>
                     <p className="mt-1 text-2xl font-bold text-blue-700">{data?.overview.total || 0}</p>
@@ -269,6 +269,10 @@ export default function CrmPage() {
                   <div className="rounded-lg bg-green-50 p-4">
                     <p className="text-xs font-medium uppercase text-green-600">Resolved</p>
                     <p className="mt-1 text-2xl font-bold text-green-700">{data?.overview.resolved || 0}</p>
+                  </div>
+                  <div className="rounded-lg bg-orange-50 p-4">
+                    <p className="text-xs font-medium uppercase text-orange-600">Pending</p>
+                    <p className="mt-1 text-2xl font-bold text-orange-700">{data?.overview.pending || 0}</p>
                   </div>
                   <div className="rounded-lg bg-purple-50 p-4">
                     <p className="text-xs font-medium uppercase text-purple-600">Unread</p>

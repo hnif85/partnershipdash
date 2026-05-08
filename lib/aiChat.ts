@@ -1,6 +1,6 @@
 import { loadKnowledgeBase, findMatchingIntent, selectResponse, shouldEscalate, type KnowledgeBase } from "./knowledge/base";
 import type { AIAnalysisResult, LeadScore, ConversationContext } from "./knowledge/types";
-import { getProductKnowledge } from "./knowledge/productData";
+import { getProductKnowledgeFromDB } from "./helpdeskKnowledge";
 
 const AI_URL = process.env.MEDIAWAVE_AI_URL || "https://ai-module.mediawave.co.id/completions";
 const AI_KEY = process.env.MEDIAWAVE_AI_KEY || "F8B9F7282D17.3c4acf4ee92d90f3036dfec32066c4a3faae3222";
@@ -18,6 +18,11 @@ export interface AIReplyResult {
   intent: string;
   shouldEscalate: boolean;
   escalationReason?: string;
+  tokenUsage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
   context: ConversationContext;
 }
 
@@ -165,7 +170,7 @@ export async function generateAIReply(
       };
     }
 
-    const productKnowledge = getProductKnowledge();
+    const productKnowledge = await getProductKnowledgeFromDB();
 
     const turnCount = context?.turnCount || 0;
     const lastIntent = context?.currentIntent || "belum ada";
@@ -263,6 +268,15 @@ const response = await fetch(AI_URL, {
     const intentMatch = aiReply.match(/\[INTENT:\s*(\w+)\]/i);
     const detectedIntent = intentMatch ? intentMatch[1] : "ai_generated";
     
+    // Extract token usage from AI response
+    const tokenUsage = data?.data?.usage || data?.usage || null;
+    if (tokenUsage) {
+      console.log("=== AI TOKEN USAGE ===");
+      console.log("prompt_tokens:", tokenUsage.prompt_tokens);
+      console.log("completion_tokens:", tokenUsage.completion_tokens);
+      console.log("total_tokens:", tokenUsage.total_tokens);
+    }
+
     // Remove the [INTENT: ...] tag from the final reply
     const finalReply = aiReply.replace(/\[INTENT:.*?\]\s*/gi, "");
 
@@ -270,6 +284,7 @@ const response = await fetch(AI_URL, {
       reply: finalReply,
       intent: detectedIntent,
       shouldEscalate: false,
+      tokenUsage: tokenUsage,
       context: {
         ...context,
         currentIntent: detectedIntent,

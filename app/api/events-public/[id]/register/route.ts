@@ -4,8 +4,11 @@ import {
   checkRegistration, 
   createRegistration, 
   checkCustomerByEmail, 
-  createCustomer 
+  createCustomer,
+  updateRegistrationPriority 
 } from "@/lib/eventRegistrations";
+import { saveAnswers, getQuestionsByEvent } from "@/lib/eventQuestions";
+import { calculatePriority, type QuestionAnswer } from "@/lib/eventScoring";
 
 // POST /api/events-public/[id]/register - Register for an event
 export async function POST(
@@ -92,10 +95,46 @@ export async function POST(
       referral_source: body.referral_source,
     });
 
+    // Save questionnaire answers if provided
+    let questionnaireAnswers = null;
+    let scoringResult = null;
+    if (body.questionnaire_answers && Array.isArray(body.questionnaire_answers)) {
+      questionnaireAnswers = await saveAnswers(registration.id!, body.questionnaire_answers);
+
+      // Calculate priority scoring
+      const questions = await getQuestionsByEvent(id);
+      const sectionMap = new Map(questions.map(q => [q.id, q]));
+
+      const answersForScoring: QuestionAnswer[] = body.questionnaire_answers.map((ans: { question_id: string; answer_value: string }) => {
+        const question = sectionMap.get(ans.question_id);
+        return {
+          question_id: ans.question_id,
+          question_section: question?.section?.replace(/\s+/g, "_") || "",
+          question_type: question?.question_type || "single_choice",
+          answer_value: ans.answer_value,
+          order_index: question?.order_index || 0,
+        };
+      });
+
+      scoringResult = calculatePriority(answersForScoring);
+
+      // Update registration with priority
+      if (scoringResult.priority) {
+        await updateRegistrationPriority(
+          registration.id!,
+          scoringResult.priority,
+          scoringResult.percentage
+        );
+      }
+    }
+
     return NextResponse.json({
       registration,
       is_new_user: isNewUser,
       message: "Pendaftaran event berhasil!",
+      questionnaire_saved: questionnaireAnswers !== null,
+      priority: scoringResult?.priority || null,
+      priority_score: scoringResult?.percentage || null,
     }, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

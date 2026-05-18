@@ -170,8 +170,8 @@ export default function EventsPage() {
               className="rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
             >
               <option value="all">Semua Partner</option>
-              {data.partners?.map((partner) => (
-                <option key={partner.id} value={partner.partner}>
+              {data.partners?.map((partner, i) => (
+                <option key={partner.id ?? `partner-${i}`} value={partner.partner}>
                   {partner.partner}
                 </option>
               ))}
@@ -262,12 +262,16 @@ export default function EventsPage() {
                           >
                             Edit
                           </Link>
-                          <Link
-                            href={`/public-events/${event.id}/register`}
+                          <button
+                            onClick={() => {
+                              const url = `${window.location.origin}/public-events/${event.id}/register`;
+                              navigator.clipboard.writeText(url);
+                              alert('Link berhasil disalin!');
+                            }}
                             className="text-xs font-medium text-green-600 hover:underline"
                           >
-                            Daftar
-                          </Link>
+                            Copy Link
+                          </button>
                         </div>
                       </td>
                     </tr>

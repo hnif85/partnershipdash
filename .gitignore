@@ -90,3 +90,26 @@ logs/sync-transactions.log
 
 
 agents.md
+
+# .graphifyignore
+node_modules/
+dist/
+*.generated.py
+
+# NOTE:
+# Tailwind CSS v4 automatic class detection respects `.gitignore`.
+# The rules below (ignore everything except `src/`) prevent Tailwind from
+# scanning the actual Next.js app (`app/`, `lib/`, etc.), causing missing styles.
+# If you need "only track src" behavior, move these rules to a dedicated ignore
+# file (or scope them to build artifacts), not the repo root `.gitignore`.
+
+# junk files
+graphify-out/
+build_output.txt
+logs/
+nul)
+docs/pertanyaanQuisioner.md/
+docs/partnershipdash-main.zip
+docs/partnershipdash-main/
+test/
+python_script/

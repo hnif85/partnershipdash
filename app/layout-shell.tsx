@@ -12,22 +12,29 @@ type Props = {
 
 export default function LayoutShell({ children }: Props) {
   const pathname = usePathname();
-  const isPublicEvent = pathname?.startsWith("/public-events");
+  const isPublicPath = 
+    pathname?.startsWith("/public-events") ||
+    pathname?.match(/^\/events\/[^/]+\/attendance$/);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Skip auth check for public paths
+    if (isPublicPath) {
+      setLoading(false);
+      return;
+    }
+
     const token = localStorage.getItem("crm_token");
     const userStr = localStorage.getItem("crm_user");
     
     if (token && userStr) {
       setIsAuthenticated(true);
     } else if (pathname !== "/login") {
-      // Only redirect if not already on login page
       window.location.href = "/login";
     }
     setLoading(false);
-  }, [pathname]);
+  }, [pathname, isPublicPath]);
 
   // Show login page without sidebar
   if (pathname === "/login") {
@@ -50,14 +57,14 @@ export default function LayoutShell({ children }: Props) {
     );
   }
 
+  // For public paths, render clean standalone layout (no auth required)
+  if (isPublicPath) {
+    return <div className="min-h-screen bg-[#f7f8fb] text-zinc-900">{children}</div>;
+  }
+
   // Not authenticated - redirect to login
   if (!isAuthenticated) {
     return null; // Will redirect via useEffect
-  }
-
-  // For public event pages, render a clean standalone layout (no dashboard shell)
-  if (isPublicEvent) {
-    return <div className="min-h-screen bg-[#f7f8fb] text-zinc-900">{children}</div>;
   }
 
   // Default dashboard layout

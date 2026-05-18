@@ -26,6 +26,11 @@ export type EventRegistrationRow = {
   subscription_consideration?: string;
   whiz_solution_needed?: string;
   referral_source?: string;
+  // Priority scoring
+  priority?: "HIGH" | "MEDIUM" | "LOW";
+  priority_score?: number;
+  // Attendance
+  attended_at?: string;
 };
 
 export type RegistrationWithEvent = {
@@ -253,6 +258,68 @@ export async function updateRegistrationStatus(
 
   const result = await pool.query<EventRegistrationRow>(query, params);
   if (!result.rowCount) return null;
+  return mapRegistration(result.rows[0]);
+}
+
+// Update registration priority
+export async function updateRegistrationPriority(
+  id: string,
+  priority: "HIGH" | "MEDIUM" | "LOW",
+  score: number
+): Promise<EventRegistrationRow | null> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
+  const result = await pool.query<EventRegistrationRow>(
+    `UPDATE event_registrations 
+     SET priority = $1, priority_score = $2
+     WHERE id = $3
+     RETURNING *`,
+    [priority, score, id]
+  );
+
+if (!result.rowCount) return null;
+  return mapRegistration(result.rows[0]);
+}
+
+// Mark registration as attended
+export async function markAttendance(
+  id: string
+): Promise<EventRegistrationRow | null> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
+  const result = await pool.query<EventRegistrationRow>(
+    `UPDATE event_registrations 
+     SET attended_at = NOW(), status = 'attended'
+     WHERE id = $1
+     RETURNING *`,
+    [id]
+  );
+
+  if (!result.rowCount) return null;
+  return mapRegistration(result.rows[0]);
+}
+
+// Get registration by email and event
+export async function getRegistrationByEmailAndEvent(
+  eventId: string,
+  email: string
+): Promise<EventRegistrationRow | null> {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
+  const result = await pool.query<EventRegistrationRow>(
+    `SELECT * FROM event_registrations 
+     WHERE event_id = $1 AND email ILIKE $2
+     LIMIT 1`,
+    [eventId, email]
+  );
+
+  if (result.rows.length === 0) return null;
   return mapRegistration(result.rows[0]);
 }
 

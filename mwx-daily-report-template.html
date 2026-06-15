@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>MWX &middot; {{REPORT_DATE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#faf9f5;color:#141413;display:flex;flex-direction:column}
+.f{display:flex}
+.f1{flex:1}
+.gap4{gap:4px}
+.gap8{gap:8px}
+.gap12{gap:12px}
+.w-full{width:100%}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* HEADER */
+.hd{background:#181715;color:#faf9f5;padding:10px 20px;flex-shrink:0}
+.hd1{font-size:15px;font-weight:600;letter-spacing:-0.2px}
+.hd1 span{color:#8e8b82;font-weight:400}
+.hd2{font-size:11px;color:#8e8b82;margin-top:1px}
+.hd2 strong{color:#faf9f5;font-weight:500}
+.hd-meta{display:flex;gap:16px;margin-top:6px;font-size:11px;color:#8e8b82;flex-wrap:wrap}
+.hd-meta .hm{white-space:nowrap}
+.hd-meta .hm strong{color:#faf9f5;font-weight:500}
+.hd-badge{font-size:10px;font-weight:600;background:rgba(255,255,255,0.08);padding:3px 10px;border-radius:999px;white-space:nowrap;margin-left:auto}
+
+/* MAIN GRID */
+.gwrap{flex:1;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;padding:12px 20px;min-height:0}
+@media(max-width:1100px){.gwrap{grid-template-columns:1fr 1fr}}
+@media(max-width:700px){.gwrap{grid-template-columns:1fr}}
+
+/* COLUMN CARDS */
+.col{background:#ffffff;border:1px solid #e6dfd8;border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.col-hd{padding:8px 14px 6px;border-bottom:1px solid #e6dfd8;font-size:11px;font-weight:600;color:#6c6a64;text-transform:uppercase;letter-spacing:0.5px;flex-shrink:0;background:#faf9f5}
+.col-bd{padding:8px 14px 10px;flex:1;display:flex;flex-direction:column;gap:6px;overflow:hidden;min-height:0}
+
+/* FUNNEL */
+.fn{display:flex;flex-direction:column;gap:4px}
+.fn-r{display:flex;align-items:center;gap:6px;font-size:12px}
+.fn-r .lbl{color:#6c6a64;min-width:62px}
+.fn-r .ct{font-weight:600;font-family:"JetBrains Mono",monospace;font-size:13px;min-width:46px;text-align:right}
+.fn-bar{flex:1;height:14px;background:#f0eee8;border-radius:3px;overflow:hidden}
+.fn-bar .b{height:100%;border-radius:3px}
+
+/* ACTIVE ROW */
+.ar{display:flex;gap:16px;padding:6px 0;border-top:1px solid #ebe6df;margin-top:auto}
+.ar-item{flex:1}
+.ar-num{font-size:18px;font-weight:600;font-family:"JetBrains Mono",monospace;line-height:1}
+.ar-lbl{font-size:10px;color:#6c6a64;margin-top:1px}
+
+/* KPI ROWS */
+.kr{display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f5f0e8;font-size:12px}
+.kr:last-child{border-bottom:none}
+.kr .lbl{color:#6c6a64}
+.kr .val{font-weight:600;font-family:"JetBrains Mono",monospace;font-size:13px}
+.kr .del{font-size:11px;font-weight:600;margin-left:4px}
+.kr .del.p{color:#cc785c}
+.kr .del.n{color:#c64545}
+.kr .del.z{color:#8e8b82}
+
+/* BREAKDOWN */
+.br{display:flex;flex-direction:column;gap:3px;margin-top:auto;padding-top:4px;border-top:1px solid #ebe6df}
+.br-r{display:flex;align-items:center;gap:6px;font-size:11px}
+.br-r .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.br-r .nm{color:#6c6a64;min-width:60px}
+.br-r .bb{flex:1;height:10px;background:#f0eee8;border-radius:2px;overflow:hidden}
+.br-r .bb .f{height:100%;border-radius:2px}
+.br-r .mt{font-family:"JetBrains Mono",monospace;font-size:10px;color:#141413;min-width:55px;text-align:right}
+.br-r .mt .u{color:#6c6a64}
+
+/* CALLOUT */
+.cl{font-size:10px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:5px;padding:5px 8px;margin-top:auto}
+
+/* CHART MINI */
+.cw{position:relative;flex:1;min-height:55px}
+.cw.tall{min-height:70px}
+
+/* EVENT */
+.ev-nm{font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.ev-nm .dt{font-size:11px;font-weight:400;color:#6c6a64}
+.ev-mx{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:4px 0}
+.ev-c{text-align:center;padding:6px 4px;background:#faf9f5;border-radius:6px}
+.ev-c.hl{background:#f5f0e8}
+.ev-c .l{font-size:9px;font-weight:600;text-transform:uppercase;color:#6c6a64;letter-spacing:0.3px}
+.ev-c .d{font-size:9px;color:#8e8b82;margin:1px 0 2px}
+.ev-c .u{font-size:15px;font-weight:700;font-family:"JetBrains Mono",monospace}
+.ev-c .u.coral{color:#cc785c}
+.ev-c .us{font-size:10px;color:#6c6a64}
+.ev-is{font-size:11px;font-weight:500;padding:6px 10px;border-radius:5px;margin-top:4px}
+.ev-is.g{background:#f0fdf4;color:#5db872}
+.ev-is.r{background:#fef2f2;color:#c64545}
+
+/* BOTTOM BAR */
+.bt{flex-shrink:0;padding:5px 20px;font-size:10px;color:#8e8b82;background:#faf9f5;border-top:1px solid #e6dfd8;display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<header class="hd">
+  <div class="f gap8" style="align-items:center">
+    <div class="hd1">MWX Market <span>&middot;</span> Daily Report &mdash; {{REPORT_DATE}}</div>
+    <div class="hd-badge">{{PERIOD_LABEL}}</div>
+  </div>
+  <div class="hd2">Data per {{DATA_DATE}} &middot; Generated {{GENERATED_TIME}}</div>
+  <div class="hd-meta">
+    <span class="hm">Registered: <strong>{{USER_TOTAL}}</strong></span>
+    <span class="hm">Free Trial: <strong>{{FREE_TRIAL}}</strong></span>
+    <span class="hm">Buyers: <strong>{{BUYER_COUNT}}</strong></span>
+    <span class="hm">User Baru ({{NEW_TODAY_DATE}}): <strong>{{NEW_TODAY}}</strong></span>
+  </div>
+</header>
+
+<div class="gwrap">
+
+  <!-- COL 1: USER GROWTH -->
+  <div class="col">
+    <div class="col-hd">Zona 2 — User Growth</div>
+    <div class="col-bd">
+      <div class="fn">
+        <div class="fn-r">
+          <span class="lbl">Registered</span>
+          <span class="ct">{{USER_TOTAL}}</span>
+          <div class="fn-bar"><div class="b" style="width:100%;background:#181715"></div></div>
+        </div>
+        <div class="fn-r">
+          <span class="lbl">Free Trial</span>
+          <span class="ct">{{FREE_TRIAL}}</span>
+          <div class="fn-bar"><div class="b" style="width:36%;background:#cc785c"></div></div>
+        </div>
+        <div class="fn-r">
+          <span class="lbl">Buyer</span>
+          <span class="ct">{{BUYER_COUNT}}</span>
+          <div class="fn-bar"><div class="b" style="width:10%;background:#5db872"></div></div>
+        </div>
+      </div>
+      <div class="cw" style="min-height:60px"><canvas id="userSparkline"></canvas></div>
+      <div class="ar">
+        <div class="ar-item">
+          <div class="ar-num">{{ACTIVE_7D}}</div>
+          <div class="ar-lbl">Aktif 7 hari</div>
+        </div>
+        <div class="ar-item">
+          <div class="ar-num">{{ACTIVE_30D}}</div>
+          <div class="ar-lbl">Aktif 30 hari</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COL 2: MONETISASI -->
+  <div class="col">
+    <div class="col-hd">Zona 3 — Monetisasi</div>
+    <div class="col-bd">
+      <div class="kr">
+        <span class="lbl">Transaksi Hari Ini</span>
+        <span><span class="val">{{TX_TODAY}}</span><span class="del {{TX_DELTA_CLASS}}">{{TX_DELTA}}</span></span>
+      </div>
+      <div class="kr">
+        <span class="lbl">Revenue Hari Ini</span>
+        <span class="val">Rp{{REVENUE_TODAY}}</span>
+      </div>
+      <div class="kr">
+        <span class="lbl">Transaksi Bulan Berjalan</span>
+        <span class="val">{{TX_MONTH}}</span>
+      </div>
+      <div class="kr">
+        <span class="lbl">Revenue Bulan Berjalan</span>
+        <span class="val">Rp{{REVENUE_MONTH}}</span>
+      </div>
+      <div class="cw tall"><canvas id="txChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- COL 3: PENGGUNAAN APLIKASI -->
+  <div class="col">
+    <div class="col-hd">Zona 4 — Penggunaan Aplikasi</div>
+    <div class="col-bd">
+      <div class="kr">
+        <span class="lbl">Penggunaan Hari Ini</span>
+        <span class="val">{{USAGE_TODAY}}</span>
+      </div>
+      <div class="kr">
+        <span class="lbl">Unique Users</span>
+        <span class="val">{{UNIQUE_USAGE}}</span>
+      </div>
+      <div class="kr">
+        <span class="lbl">Penggunaan Bulan {{MONTH_NAME}}</span>
+        <span class="val">{{USAGE_MONTH}}</span>
+      </div>
+      <div class="kr">
+        <span class="lbl">Unique Users Bulan Ini</span>
+        <span class="val">{{UNIQUE_MONTH_USERS}}</span>
+      </div>
+      <div class="br" id="breakdownList"></div>
+      <div class="cw"><canvas id="usageChart"></canvas></div>
+      <div class="cl" id="calloutBox">{{CALLOUT_TEXT}}</div>
+    </div>
+  </div>
+
+  <!-- COL 4: EVENT ATTRIBUTION -->
+  <div class="col">
+    <div class="col-hd">Zona 5 — Event Attribution</div>
+    <div class="col-bd" id="eventList"></div>
+  </div>
+
+</div>
+
+<div class="bt">
+  <span>Data per {{DATA_DATE}}</span>
+  <span>Generated {{GENERATED_TIME}}</span>
+</div>
+
+<script>
+var DATA = {{DATA_JSON}};
+
+function fmt(n) { return Number(n).toLocaleString('id-ID'); }
+
+Chart.defaults.font.family = "Inter, system-ui, sans-serif";
+Chart.defaults.font.size = 9;
+
+// Sparkline
+(function(){
+  var el = document.getElementById('userSparkline'); if(!el)return;
+  var d = DATA.users.trendNew;
+  new Chart(el, {
+    type: 'line',
+    data: { labels: d.map(function(x){return x.d}), datasets: [{ data: d.map(function(x){return x.v}), borderColor: '#cc785c', backgroundColor: 'rgba(204,120,92,0.08)', fill: true, tension: 0.3, borderWidth: 1.5, pointRadius: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false, beginAtZero: true } }, elements: { point: { radius: 0 } } }
+  });
+})();
+
+// Tx bar chart
+(function(){
+  var el = document.getElementById('txChart'); if(!el)return;
+  var d = DATA.transactions.trend;
+  new Chart(el, {
+    type: 'bar',
+    data: { labels: d.map(function(x){return x.d}), datasets: [{ data: d.map(function(x){return x.tx}), backgroundColor: d.map(function(x){return x.d.indexOf('/6')!==-1?'rgba(204,120,92,0.8)':'rgba(24,23,21,0.25)'}), borderRadius: 2, borderSkipped: false }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx){return ctx.raw+' transaksi'} } } }, scales: { x: { display: false, grid: { display: false } }, y: { display: false, beginAtZero: true, grid: { display: false } } } }
+  });
+})();
+
+// Usage area chart
+(function(){
+  var el = document.getElementById('usageChart'); if(!el)return;
+  var d = DATA.usage.trend;
+  new Chart(el, {
+    type: 'line',
+    data: { labels: d.map(function(x){return x.d}), datasets: [{ data: d.map(function(x){return x.v}), borderColor: '#181715', backgroundColor: 'rgba(24,23,21,0.06)', fill: true, tension: 0.4, borderWidth: 1.5, pointRadius: 2, pointBackgroundColor: '#181715' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(ctx){return ctx.raw+' kredit'} } } }, scales: { x: { display: false, grid: { display: false } }, y: { display: false, beginAtZero: true, grid: { display: false } } } }
+  });
+})();
+
+// Breakdown
+(function(){
+  var list = document.getElementById('breakdownList'); if(!list)return;
+  var items = DATA.usage.breakdown;
+  var total = DATA.usage.today;
+  var h = '';
+  for(var i=0;i<items.length;i++){
+    var b=items[i], pct=total>0?(b.usage/total*100):0;
+    h+='<div class="br-r"><span class="dot" style="background:'+b.color+'"></span><span class="nm">'+b.app+'</span><div class="bb"><div class="f" style="width:'+pct+'%;background:'+b.color+'"></div></div><span class="mt">'+b.usage+' <span class="u">('+b.unique+')</span></span></div>';
+  }
+  list.innerHTML = h;
+})();
+
+// Callout
+(function(){
+  var box = document.getElementById('calloutBox');
+  if(box&&DATA.usage.calloutText) box.textContent = DATA.usage.calloutText;
+})();
+
+// Events
+(function(){
+  var list = document.getElementById('eventList'); if(!list)return;
+  var evs = DATA.events;
+  var h = '';
+  for(var i=0;i<evs.length;i++){
+    var e=evs[i];
+    h+='<div class="ev-nm">'+e.name+' <span class="dt">'+e.date+'</span></div>';
+    h+='<div class="ev-mx">';
+    h+='<div class="ev-c hl"><div class="l">Hari Event</div><div class="u coral">'+fmt(e.day.usage)+'</div><div class="us">'+e.day.users+' user</div></div>';
+    h+='<div class="ev-c"><div class="l">H+1</div><div class="d">'+e.h1Date+'</div>'+(e.h1?'<div class="u">'+fmt(e.h1.usage)+'</div><div class="us">'+e.h1.users+' user</div>':'<div class="u" style="color:#8e8b82">&mdash;</div>')+'</div>';
+    h+='<div class="ev-c"><div class="l">H+3</div><div class="d">'+e.h3Date+'</div>'+(e.h3?'<div class="u">'+fmt(e.h3.usage)+'</div><div class="us">'+e.h3.users+' user</div>':'<div class="u" style="color:#8e8b82">&mdash;</div>')+'</div>';
+    h+='<div class="ev-c"><div class="l">H+7</div><div class="d">'+e.h7Date+'</div>'+(e.h7?'<div class="u">'+fmt(e.h7.usage)+'</div><div class="us">'+e.h7.users+' user</div>':'<div class="u" style="color:#8e8b82">&mdash;</div>')+'</div>';
+    h+='</div>';
+    var ic='', it='';
+    if(e.insightCustom){ ic='r'; it=e.insightCustom; }
+    else if(e.h1&&e.h1.usage===0){ ic='r'; it='Zero Retention di H+1 &mdash; Tidak ada penggunaan lanjutan.'; }
+    else if(e.h1&&e.h1.usage>0){ var p=e.day.usage>0?Math.round(e.h1.usage/e.day.usage*100):0; ic='g'; it='Ada Retensi H+1 ('+p+'%) &mdash; '+e.h1.users+' user masih aktif.'; }
+    if(it) h+='<div class="ev-is '+ic+'">'+it+'</div>';
+  }
+  list.innerHTML = h;
+})();
+</script>
+</body>
+</html>

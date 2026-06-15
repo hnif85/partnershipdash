@@ -7,12 +7,26 @@ export async function GET(request: Request) {
     const sortBy = searchParams.get('sort_by') || 'user_count'; // Default sort by user_count
     const sortOrder = searchParams.get('sort_order') || 'desc'; // Default desc
 
-    // Validate sort parameters
-    const validSortFields = ['user_count', 'finished_transactions_count', 'total_purchase_amount', 'partner_name', 'referral_code'];
-    const validSortOrders = ['asc', 'desc'];
+    // Validate sort parameters and map to safe column identifier
+    const validSortFields: Record<string, string> = {
+      'user_count': 'user_count',
+      'finished_transactions_count': 'finished_transactions_count',
+      'total_purchase_amount': 'total_purchase_amount',
+      'partner_name': 'partner_name',
+      'referral_code': 'referral_code',
+    };
+    const validSortOrders: Record<string, string> = {
+      'asc': 'ASC',
+      'desc': 'DESC',
+    };
 
-    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : 'user_count';
-    const finalSortOrder = validSortOrders.includes(sortOrder) ? sortOrder : 'desc';
+    const sortColumn = validSortFields[sortBy] || 'user_count';
+    const sortDir = validSortOrders[sortOrder] || 'DESC';
+
+    const isPartnerSort = sortColumn === 'partner_name';
+    const orderClause = isPartnerSort
+      ? "CASE WHEN partner_name IS NULL THEN 1 ELSE 0 END, partner_name"
+      : sortColumn;
 
     // Build the main query to get referral statistics
     const query = `
@@ -68,7 +82,7 @@ export async function GET(request: Request) {
       LEFT JOIN purchase_stats ps ON rs.referral_code = ps.referral_code
       LEFT JOIN credit_stats cs ON rs.referral_code = cs.referral_code
       WHERE rs.user_count > 0
-      ORDER BY ${finalSortBy === 'partner_name' ? "CASE WHEN partner_name IS NULL THEN 1 ELSE 0 END, partner_name" : finalSortBy} ${finalSortOrder}
+      ORDER BY ${orderClause} ${sortDir}
     `;
 
     const result = await pool.query(query);

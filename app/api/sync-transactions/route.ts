@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { upsertCustomer } from "@/lib/cmsCustomers";
 import { mwxAuth } from "@/lib/mwxAuth";
 import fs from "fs";
 import path from "path";
@@ -269,6 +270,48 @@ async function upsertTransaction(transaction: TransactionFromAPI): Promise<void>
   try {
     await pool.query(query, values);
   } catch (dbError) {
+    const msg = dbError instanceof Error ? dbError.message : String(dbError);
+    // If foreign key violation on customer_guid, upsert customer first then retry
+    if (msg.includes('fk_transaction_customer') || msg.includes('violates foreign key')) {
+      const cust = transaction.customer;
+      if (cust?.guid) {
+        console.log(`FK violation, upserting customer ${cust.guid} first...`);
+        await upsertCustomer({
+          guid: cust.guid,
+          username: cust.username,
+          full_name: cust.full_name,
+          gender: cust.gender,
+          birth_date: cust.birth_date,
+          identity_number: cust.identity_number,
+          identity_img: cust.identity_img,
+          country_id: cust.country_id,
+          country: cust.country,
+          city_id: cust.city_id,
+          city: cust.city,
+          is_identity_verified: cust.is_identity_verified,
+          bank_name: cust.bank_name,
+          bank_account_number: cust.bank_account_number,
+          bank_owner_name: cust.bank_owner_name,
+          phone_number: cust.phone_number,
+          is_phone_number_verified: cust.is_phone_number_verified,
+          email: cust.email,
+          is_email_verified: cust.is_email_verified,
+          corporate_name: cust.corporate_name,
+          industry_name: cust.industry_name,
+          employee_qty: typeof cust.employee_qty === 'number' ? cust.employee_qty : undefined,
+          solution_corporate_needs: Array.isArray(cust.solution_corporate_needs) ? cust.solution_corporate_needs.join(', ') : undefined,
+          referal_code: cust.referal_code,
+          is_free_trial_use: cust.is_free_trial_use,
+          status: cust.status,
+          created_at: cust.created_at,
+          updated_at: cust.updated_at,
+        });
+        // Retry transaction insert
+        await pool.query(query, values);
+        console.log(`Transaction ${transaction.guid} inserted after customer upsert`);
+        return; // success after retry
+      }
+    }
     console.error('Database error:', dbError);
     throw dbError;
   }

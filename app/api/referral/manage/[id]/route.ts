@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 import { ACTIVITY_SLUGS } from "@/lib/activityMapping";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 // PUT /api/referral/manage/[id] - Update referral partner
 export async function PUT(
@@ -8,6 +9,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id } = await params;
     const body = await request.json();
     const { code, partner, is_gov, is_new, activity_slug } = body;
@@ -79,11 +83,7 @@ export async function PUT(
     });
 
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Referral partner update error:", error);
-    return NextResponse.json({
-      error: message
-    }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
@@ -93,6 +93,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id } = await params;
 
     // Check if partner exists
@@ -132,10 +135,6 @@ export async function DELETE(
     });
 
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Referral partner deletion error:", error);
-    return NextResponse.json({
-      error: message
-    }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

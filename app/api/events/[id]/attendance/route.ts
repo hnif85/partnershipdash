@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPublicEventById } from "@/lib/events";
 import { checkInToEvent } from "@/lib/attendance";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 // POST /api/events/[id]/attendance - Check-in to event
 export async function POST(
@@ -8,6 +9,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id } = await params;
     const body = await request.json();
 
@@ -57,8 +61,7 @@ export async function POST(
       event_date: event.event_date,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 import { ensureCrmSchema } from "@/lib/crmSchema";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,6 +60,8 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership", "crm");
     await ensureCrmSchema();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -76,7 +79,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Failed to update conversation:", error);
-    return NextResponse.json({ error: "Failed to update conversation" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

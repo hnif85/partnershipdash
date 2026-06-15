@@ -93,16 +93,6 @@ export default function LoginPage() {
             {loading ? "Logging in..." : "Masuk"}
           </button>
         </form>
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Default login credentials:</p>
-          <div className="mt-2 text-xs space-y-1">
-            <p><span className="font-medium">Super Admin:</span> superadmin@mwx.com</p>
-            <p><span className="font-medium">Partnership:</span> partnership@mwx.com</p>
-            <p><span className="font-medium">CRM:</span> crm@mwx.com</p>
-            <p className="mt-2 text-gray-400">Password: password123</p>
-          </div>
-        </div>
       </div>
     </div>
   );

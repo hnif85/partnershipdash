@@ -3,6 +3,7 @@ import { pool } from "@/lib/database";
 import { sendWatZapText } from "@/lib/watZap";
 import { sendDamcorpText } from "@/lib/damcorpWhatsapp";
 import { getConversationHistory, generateConversationSummary, generateFollowUpResponse, getInActiveConversations } from "@/lib/helpdeskFollowUp";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -27,6 +28,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership", "crm");
+
     const { conversation_id, action = "preview" } = await request.json();
 
     if (!conversation_id) {
@@ -84,13 +88,15 @@ export async function POST(request: NextRequest) {
       suggestedFollowUp
     });
   } catch (error) {
-    console.error("Follow-up error:", error);
-    return NextResponse.json({ error: "Failed to process follow-up" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership", "crm");
+
     const { conversation_id, message, send = false } = await request.json();
 
     if (!conversation_id) {
@@ -166,7 +172,6 @@ export async function PUT(request: NextRequest) {
       waMessageId
     });
   } catch (error) {
-    console.error("Follow-up send error:", error);
-    return NextResponse.json({ error: "Failed to send follow-up" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

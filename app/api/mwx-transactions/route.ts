@@ -356,8 +356,8 @@ export async function POST(request: NextRequest) {
             'token': token,
           },
           body: JSON.stringify({
-            identifier: process.env.NEXT_PUBLIC_MWX_IDENTIFIER || 'superadmin@gmail.com',
-            password: process.env.NEXT_PUBLIC_MWX_PASSWORD || 'qLlROtjr2FLwxzR8',
+            identifier: process.env.MWX_BACKOFFICE_IDENTIFIER,
+            password: process.env.MWX_BACKOFFICE_PASSWORD,
           }),
         });
 

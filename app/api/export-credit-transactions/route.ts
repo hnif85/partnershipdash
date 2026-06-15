@@ -4,7 +4,7 @@ import * as XLSX from 'xlsx';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+  ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: true } : undefined,
 });
 
 export async function GET(request: NextRequest) {

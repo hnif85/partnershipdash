@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ensureCrmSchema } from "@/lib/crmSchema";
 import { executeQuery } from "@/lib/database";
 import { sendDamcorpText } from "@/lib/damcorpWhatsapp";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -18,7 +19,10 @@ export async function GET() {
 }
 
 export async function PATCH(request: NextRequest) {
-  await ensureCrmSchema();
+  try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership", "crm");
+    await ensureCrmSchema();
   const body = await request.json();
   const id = Number(body?.id);
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -30,10 +34,16 @@ export async function PATCH(request: NextRequest) {
     [id, body?.status || null, body?.assigned_to || null, typeof body?.bot_enabled === "boolean" ? body.bot_enabled : null]
   );
   return NextResponse.json({ ok: true });
+  } catch (error) {
+    return authErrorResponse(error);
+  }
 }
 
 export async function POST(request: NextRequest) {
-  await ensureCrmSchema();
+  try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership", "crm");
+    await ensureCrmSchema();
   const body = await request.json();
   const conversationId = Number(body?.conversation_id);
   const text = String(body?.text || "").trim();
@@ -57,4 +67,7 @@ export async function POST(request: NextRequest) {
   );
 
   return NextResponse.json({ ok: true, wa_message_id: result.waMessageId || null });
+  } catch (error) {
+    return authErrorResponse(error);
+  }
 }

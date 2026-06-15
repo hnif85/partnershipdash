@@ -17,16 +17,19 @@ export async function GET(request: NextRequest) {
     // Credit/Debit frequency by date range
     const chartDataQuery = `
       SELECT
-        DATE(created_at) as date,
-        COUNT(CASE WHEN type = 'credit' THEN 1 END) as credit_count,
-        COUNT(CASE WHEN type = 'debit' THEN 1 END) as debit_count,
-        SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as credit_amount,
-        SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as debit_amount,
-        COUNT(DISTINCT CASE WHEN type = 'credit' THEN user_id END) as unique_credit_users,
-        COUNT(DISTINCT CASE WHEN type = 'debit' THEN user_id END) as unique_debit_users
-      FROM credit_manager_transactions
-      WHERE DATE(created_at) >= $1 AND DATE(created_at) <= $2
-      GROUP BY DATE(created_at)
+        DATE(cmt.created_at) as date,
+        COUNT(CASE WHEN cmt.type = 'credit' THEN 1 END) as credit_count,
+        COUNT(CASE WHEN cmt.type = 'debit' THEN 1 END) as debit_count,
+        SUM(CASE WHEN cmt.type = 'credit' THEN cmt.amount ELSE 0 END) as credit_amount,
+        SUM(CASE WHEN cmt.type = 'debit' THEN cmt.amount ELSE 0 END) as debit_amount,
+        COUNT(DISTINCT CASE WHEN cmt.type = 'credit' THEN cmt.user_id END) as unique_credit_users,
+        COUNT(DISTINCT CASE WHEN cmt.type = 'debit' THEN cmt.user_id END) as unique_debit_users
+      FROM credit_manager_transactions cmt
+      JOIN cms_customers c ON c.guid::uuid = cmt.user_id
+      LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+      WHERE DATE(cmt.created_at) >= $1 AND DATE(cmt.created_at) <= $2
+        AND dee.email IS NULL
+      GROUP BY DATE(cmt.created_at)
       ORDER BY date ASC
     `;
 

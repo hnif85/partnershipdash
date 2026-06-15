@@ -7,7 +7,7 @@ const useSsl =
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   // Supabase (and most hosted Postgres) require TLS; allow self-signed certs in dev.
-  ssl: useSsl ? { rejectUnauthorized: false } : false,
+  ssl: useSsl ? { rejectUnauthorized: true } : false,
   max: 10,
   min: 0,
   idleTimeoutMillis: 30000,

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ensureCrmSchema } from "@/lib/crmSchema";
 import { executeQuery } from "@/lib/database";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function GET() {
   await ensureCrmSchema();
@@ -9,7 +10,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  await ensureCrmSchema();
+  try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+    await ensureCrmSchema();
   const body = await request.json();
   const inserted = await executeQuery(
     `INSERT INTO helpdesk_auto_reply_templates
@@ -27,10 +31,16 @@ export async function POST(request: NextRequest) {
     ]
   );
   return NextResponse.json({ rule: inserted[0] });
+  } catch (error) {
+    return authErrorResponse(error);
+  }
 }
 
 export async function PATCH(request: NextRequest) {
-  await ensureCrmSchema();
+  try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+    await ensureCrmSchema();
   const body = await request.json();
   const id = Number(body?.id);
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -53,4 +63,7 @@ export async function PATCH(request: NextRequest) {
     ]
   );
   return NextResponse.json({ ok: true });
+  } catch (error) {
+    return authErrorResponse(error);
+  }
 }

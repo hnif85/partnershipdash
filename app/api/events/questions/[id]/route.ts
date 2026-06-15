@@ -4,6 +4,7 @@ import {
   updateQuestion,
   deleteQuestion,
 } from "@/lib/eventQuestions";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 // GET /api/events/questions/[id] - Get single question
 // PUT /api/events/questions/[id] - Update question
@@ -32,6 +33,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id } = await params;
     const body = await request.json();
 
@@ -52,8 +56,7 @@ export async function PUT(
 
     return NextResponse.json({ question });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
@@ -62,6 +65,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id } = await params;
     const deleted = await deleteQuestion(id);
 
@@ -71,7 +77,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

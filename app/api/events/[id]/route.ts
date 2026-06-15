@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEventById, updateEvent, deleteEvent } from "@/lib/events";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 // GET /api/events/[id] - Get event by ID
 export async function GET(
@@ -25,8 +26,8 @@ export async function GET(
       } 
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("Event API error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
@@ -36,6 +37,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id } = await params;
     const body = await request.json();
 
@@ -66,8 +70,7 @@ export async function PUT(
       message: "Event berhasil diupdate",
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
@@ -77,6 +80,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id } = await params;
     const success = await deleteEvent(id);
 
@@ -86,7 +92,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Event berhasil dihapus" });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

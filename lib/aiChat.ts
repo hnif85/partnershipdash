@@ -2,8 +2,9 @@ import { loadKnowledgeBase, findMatchingIntent, selectResponse, shouldEscalate, 
 import type { AIAnalysisResult, LeadScore, ConversationContext } from "./knowledge/types";
 import { getProductKnowledgeFromDB } from "./helpdeskKnowledge";
 
-const AI_URL = process.env.MEDIAWAVE_AI_URL || "https://ai-module.mediawave.co.id/completions";
-const AI_KEY = process.env.MEDIAWAVE_AI_KEY || "F8B9F7282D17.3c4acf4ee92d90f3036dfec32066c4a3faae3222";
+const AI_URL = process.env.MEDIAWAVE_AI_URL;
+const AI_KEY = process.env.MEDIAWAVE_AI_KEY;
+if (!AI_KEY) throw new Error("MEDIAWAVE_AI_KEY is not configured");
 
 export interface SendMessageOptions {
   phoneNumber: string;

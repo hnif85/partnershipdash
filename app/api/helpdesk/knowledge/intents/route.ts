@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -19,6 +20,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { intent_name, keywords, priority, response_templates, next_context, requires_param, is_active } = await request.json();
 
     if (!intent_name || !keywords || !Array.isArray(keywords)) {
@@ -33,13 +37,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, intent: result.rows[0] });
   } catch (error) {
-    console.error("Failed to create intent:", error);
-    return NextResponse.json({ error: "Failed to create intent" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
     const { id, intent_name, keywords, priority, response_templates, next_context, requires_param, is_active } = await request.json();
 
     if (!id || !intent_name) {
@@ -60,13 +65,14 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, intent: result.rows[0] });
   } catch (error) {
-    console.error("Failed to update intent:", error);
-    return NextResponse.json({ error: "Failed to update intent" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
     const { id } = await request.json();
 
     if (!id) {
@@ -77,7 +83,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete intent:", error);
-    return NextResponse.json({ error: "Failed to delete intent" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

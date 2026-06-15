@@ -6,6 +6,7 @@ import {
   updateQuestion,
   deleteQuestion,
 } from "@/lib/eventQuestions";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 // GET /api/events/questions?eventId=xxx - Get questions for an event
 export async function GET(request: NextRequest) {
@@ -29,6 +30,9 @@ export async function GET(request: NextRequest) {
 // POST /api/events/questions - Create new question
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const body = await request.json();
 
     if (!body.section || !body.question_text || !body.order_index) {
@@ -58,7 +62,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ question }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

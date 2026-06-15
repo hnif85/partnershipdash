@@ -113,3 +113,9 @@ docs/partnershipdash-main.zip
 docs/partnershipdash-main/
 test/
 python_script/
+
+# user data directories
+BENAR-MWX-Data/
+mwxrelated/
+reports/
+to_delete/

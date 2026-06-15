@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 import { ACTIVITY_SLUGS } from "@/lib/activityMapping";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 // GET /api/referral/manage - Get all referral partners
 export async function GET(request: NextRequest) {
@@ -51,6 +52,9 @@ export async function GET(request: NextRequest) {
 // POST /api/referral/manage - Create new referral partner
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const body = await request.json();
     const { code, partner, is_gov, activity_slug } = body;
 
@@ -88,17 +92,15 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Referral partner creation error:", error);
-    return NextResponse.json({
-      error: message
-    }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
 // PUT /api/referral/manage/[id] - Update existing referral partner
 export async function PUT(request: NextRequest, context: any) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
     const { params } = context as { params: { id: string } };
     const id = params.id;
     const body = await request.json();
@@ -155,10 +157,6 @@ export async function PUT(request: NextRequest, context: any) {
     });
 
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Referral partner update error:", error);
-    return NextResponse.json({
-      error: message
-    }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

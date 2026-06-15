@@ -63,23 +63,20 @@ async function fetchTransactionsFromAPI(startDate: string, endDate: string): Pro
 
     const data = await response.json();
 
-    // API returns { success, message, data: { data: TransactionFromAPI[], page, limit, total_count } }
     const transactions = data?.data?.data ?? data?.data ?? data?.transactions ?? [];
 
     if (!Array.isArray(transactions) || transactions.length === 0) {
-      break; // No more data
+      break;
     }
 
     allTransactions.push(...transactions);
 
-    // If we got fewer results than the limit, we've reached the end
     if (transactions.length < limit) {
       break;
     }
 
     page++;
 
-    // Safety check to prevent infinite loops
     if (page > 1000) {
       console.warn("Reached maximum page limit (1000), stopping pagination");
       break;
@@ -90,7 +87,6 @@ async function fetchTransactionsFromAPI(startDate: string, endDate: string): Pro
 }
 
 async function upsertTransaction(transaction: TransactionFromAPI): Promise<void> {
-  // Skip transactions without id as it's used as the primary identifier
   if (!transaction.id || transaction.id.trim() === '') {
     throw new Error('Transaction id is required for upsert operation');
   }
@@ -127,69 +123,38 @@ async function upsertTransaction(transaction: TransactionFromAPI): Promise<void>
     transaction.type,
     transaction.user_id,
     transaction.action_id,
-    new Date(), // inserted_at
+    new Date(),
   ];
 
   await pool.query(query, values);
 }
 
-export async function GET() {
+export async function POST(request: Request) {
   try {
-    // Test the API connection
-    console.log("Testing Credit Manager API connection...");
-
-    const lastDate = await getLastTransactionDate();
-    console.log("Last transaction date in database:", lastDate);
-
-    const startDate = lastDate ? new Date(lastDate).toISOString().split('T')[0] : '2024-01-01';
-    const endDate = new Date().toISOString().split('T')[0];
-
-    console.log(`Fetching transactions from ${startDate} to ${endDate}`);
-
-    const transactions = await fetchTransactionsFromAPI(startDate, endDate);
-    console.log(`Fetched ${transactions.length} transactions from API`);
-
-    return NextResponse.json({
-      status: "api_test_success",
-      message: "Credit Manager API connection successful",
-      transaction_count: transactions.length,
-      last_db_date: lastDate,
-      start_date: startDate,
-      end_date: endDate,
-      sample_transaction: transactions[0] || null,
-    });
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("API Test error:", error);
-    return NextResponse.json({
-      error: message,
-      status: "error"
-    }, { status: 500 });
-  }
-}
-
-export async function POST() {
-  try {
-    console.log("Starting credit manager transactions sync process...");
+    console.log("Starting credit manager transactions sync v2...");
 
     if (!process.env.DATABASE_URL) {
       console.error("DATABASE_URL not configured");
       return NextResponse.json({ error: "DATABASE_URL is not configured" }, { status: 500 });
     }
 
-    // Get the last transaction date
-    const lastDate = await getLastTransactionDate();
-    console.log("Last transaction date in database:", lastDate);
+    const body = await request.json().catch(() => ({}));
+    const { start_date, end_date } = body as { start_date?: string; end_date?: string };
 
-    // Determine start date
-    const startDate = lastDate ? new Date(lastDate).toISOString().split('T')[0] : '2024-01-01';
-    const endDate = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
 
-    console.log(`Syncing transactions from ${startDate} to ${endDate}`);
+    let resolvedStartDate = start_date;
+    let resolvedEndDate = end_date || today;
 
-    // Fetch transactions from API
-    const transactions = await fetchTransactionsFromAPI(startDate, endDate);
+    if (!resolvedStartDate) {
+      const lastDate = await getLastTransactionDate();
+      resolvedStartDate = lastDate ? new Date(lastDate).toISOString().split('T')[0] : '2024-01-01';
+      console.log("No start_date provided, using last DB date:", resolvedStartDate);
+    }
+
+    console.log(`Syncing transactions from ${resolvedStartDate} to ${resolvedEndDate}`);
+
+    const transactions = await fetchTransactionsFromAPI(resolvedStartDate, resolvedEndDate);
     console.log(`Fetched ${transactions.length} transactions from API`);
 
     if (transactions.length === 0) {
@@ -197,21 +162,20 @@ export async function POST() {
       return NextResponse.json({
         status: "sync_completed",
         total_processed: 0,
+        success_count: 0,
+        error_count: 0,
         message: "No new transactions to sync",
-        last_db_date: lastDate,
-        start_date: startDate,
-        end_date: endDate,
+        start_date: resolvedStartDate,
+        end_date: resolvedEndDate,
       });
     }
 
-    // Check database connection
     console.log("Testing database connection...");
     await pool.query('SELECT 1');
     console.log("Database connection OK");
 
-    // Upsert each transaction into the database
     console.log("Starting upsert process...");
-    const results = [];
+    const results: Array<{ id?: string; status: string; error?: string }> = [];
     let successCount = 0;
     let errorCount = 0;
 
@@ -240,14 +204,13 @@ export async function POST() {
       total_processed: transactions.length,
       success_count: successCount,
       error_count: errorCount,
-      last_db_date: lastDate,
-      start_date: startDate,
-      end_date: endDate,
-      results
+      start_date: resolvedStartDate,
+      end_date: resolvedEndDate,
+      results,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Sync error:", error);
+    console.error("Sync v2 error:", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

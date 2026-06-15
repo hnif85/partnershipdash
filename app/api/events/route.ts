@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEvents, getEventsCount, createEvent, getReferralPartners, TrainingEventRow } from "@/lib/events";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 const fallbackError = (message: string) =>
   NextResponse.json({ error: message, events: [], partners: [], total_count: 0, page: 1, limit: 10, total_pages: 0 }, { status: 500 });
@@ -39,6 +40,9 @@ export async function GET(request: NextRequest) {
 // POST /api/events - Create new event
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const body = await request.json();
     
     // Validate required fields
@@ -70,7 +74,6 @@ export async function POST(request: NextRequest) {
       message: "Event berhasil dibuat",
     }, { status: 201 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

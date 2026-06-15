@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -19,6 +20,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { name, tone, greeting, closing, signature_phrases, response_templates_json, is_active } = await request.json();
 
     if (!name || !tone) {
@@ -33,13 +37,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, persona: result.rows[0] });
   } catch (error) {
-    console.error("Failed to create persona:", error);
-    return NextResponse.json({ error: "Failed to create persona" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
     const { id, name, tone, greeting, closing, signature_phrases, response_templates_json, is_active } = await request.json();
 
     if (!id) {
@@ -60,13 +65,14 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ success: true, persona: result.rows[0] });
   } catch (error) {
-    console.error("Failed to update persona:", error);
-    return NextResponse.json({ error: "Failed to update persona" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
     const { id } = await request.json();
 
     if (!id) {
@@ -77,7 +83,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete persona:", error);
-    return NextResponse.json({ error: "Failed to delete persona" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

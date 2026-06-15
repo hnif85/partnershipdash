@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership", "crm");
+
     const { conversation_id, enabled } = await request.json();
 
     if (!conversation_id || enabled === undefined) {
@@ -18,7 +22,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true, bot_enabled: enabled });
   } catch (error) {
-    console.error("Failed to toggle bot:", error);
-    return NextResponse.json({ error: "Failed to toggle bot" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

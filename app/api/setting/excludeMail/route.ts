@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeQuery, executeQuerySingle } from "@/lib/database";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 type ExcludedEmail = {
   id?: number;
@@ -66,6 +67,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const body = await request.json();
     const { email, emails, reason } = body;
 
@@ -185,6 +189,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const body = await request.json();
     const { oldEmail, email, reason, is_active } = body;
 
@@ -238,6 +245,9 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
 

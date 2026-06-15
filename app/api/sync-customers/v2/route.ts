@@ -3,15 +3,15 @@ import { upsertCustomer } from "@/lib/cmsCustomers";
 import { pool } from "@/lib/database";
 
 const API_URL =
-  process.env.CMS_CUSTOMER_PUBLIC_API_URL ??
-  "https://api-mwxmarket.mwxmarket.ai/cms-service/customer/list/public";
+  process.env.CMS_CUSTOMER_API_URL ??
+  "https://api-mwxmarket.mwxmarket.ai/cms-service/customer/list";
 const API_KEY =
-  process.env.CMS_CUSTOMER_PUBLIC_API_KEY ?? process.env.CMS_CUSTOMER_API_KEY;
+  process.env.CMS_CUSTOMER_SYNC_API_KEY ?? process.env.CMS_CUSTOMER_API_KEY;
 
-const DEFAULT_LIMIT = Number(process.env.SYNC_CUSTOMERS_LIMIT ?? 300);
+const DEFAULT_LIMIT = Number(process.env.SYNC_CUSTOMERS_LIMIT ?? 100);
 const MAX_LIMIT = 3000;
 
-const REQUEST_TIMEOUT_MS = Number(process.env.SYNC_CUSTOMERS_TIMEOUT_MS ?? 20000);
+const REQUEST_TIMEOUT_MS = Number(process.env.SYNC_CUSTOMERS_TIMEOUT_MS ?? 30000);
 const MAX_RETRY = Number(process.env.SYNC_CUSTOMERS_MAX_RETRY ?? 3);
 
 type ApiCustomer = {
@@ -126,25 +126,12 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchCustomersPage(page: number, limit: number, bodyFilter: any) {
+async function fetchCustomersPage(offset: number, limit: number) {
   if (!API_KEY) {
-    throw new Error("CMS_CUSTOMER_PUBLIC_API_KEY / CMS_CUSTOMER_API_KEY is not configured");
+    throw new Error("CMS_CUSTOMER_API_KEY is not configured");
   }
 
-  const payload = {
-    filter: {
-      set_guid: false,
-      set_name: false,
-      set_email: false,
-      set_date: false,
-      set_platform: false,
-      ...(bodyFilter?.filter || bodyFilter || {}),
-    },
-    limit,
-    page,
-    order: bodyFilter?.order || "created_at",
-    sort: bodyFilter?.sort || "DESC",
-  };
+  const url = `${API_URL}?limit=${limit}&offset=${offset}`;
 
   let attempt = 0;
   while (true) {
@@ -152,20 +139,17 @@ async function fetchCustomersPage(page: number, limit: number, bodyFilter: any) 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const response = await fetch(API_URL, {
-        method: "POST",
+      const response = await fetch(url, {
+        method: "GET",
         headers: {
           "x-api-key": API_KEY,
-          "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
         signal: controller.signal,
       });
       clearTimeout(timeout);
 
       if (!response.ok) {
         const text = await response.text();
-        // Retry on upstream timeout / gateway issues
         if (response.status === 504 && attempt < MAX_RETRY) {
           await sleep(500 * attempt);
           continue;
@@ -174,26 +158,18 @@ async function fetchCustomersPage(page: number, limit: number, bodyFilter: any) 
       }
 
       const json = (await response.json()) as ApiResponse;
-      const customers =
-        Array.isArray(json.data) ? json.data : json.data?.customers ? json.data.customers : [];
 
-      const totalData =
-        json.total_data ??
-        (typeof json.data === "object" && !Array.isArray(json.data)
-          ? json.data?.total_data
-          : undefined);
+      if (json.code !== "00") {
+        throw new Error(`API error: ${json.message_en || "Unknown"}`);
+      }
 
-      const totalPage =
-        json.total_page ??
-        (typeof json.data === "object" && !Array.isArray(json.data)
-          ? json.data?.total_page
-          : undefined);
+      const customers = (json.data?.customers || []) as ApiCustomer[];
+      const totalData = json.data?.total_data ?? 0;
 
-      return { customers, totalData: totalData ?? customers.length, totalPage: totalPage ?? null };
+      return { customers, totalData, limit };
     } catch (err) {
       clearTimeout(timeout);
       if (err instanceof Error && err.name === "AbortError" && attempt < MAX_RETRY) {
-        // Backoff and retry when we hit timeout
         await sleep(500 * attempt);
         continue;
       }
@@ -209,59 +185,21 @@ export async function POST(request: Request) {
     }
 
     const body = (await request.json().catch(() => ({}))) as any;
-    const useIncremental = body?.incremental === true || body?.mode === "incremental";
 
     const limitInput = Number(body?.limit) || DEFAULT_LIMIT;
     const limit = Math.max(1, Math.min(limitInput, MAX_LIMIT));
-    let page = Number(body?.page) || 1;
-    let filter = body?.filter || {};
-
-    // Incremental mode: derive date range from last created_at in cms_customers
-    if (useIncremental) {
-      const latest = await pool
-        .query<{ max_created_at: string | null }>(
-          `SELECT MAX(created_at) AS max_created_at FROM cms_customers`
-        )
-        .then((r) => r.rows[0]?.max_created_at);
-
-      const lastCreated = latest ? new Date(latest) : new Date();
-      // Start: H-1 from last created, set to 00:00 local
-      const start = new Date(lastCreated);
-      start.setHours(0, 0, 0, 0);
-      start.setDate(start.getDate() - 1);
-      // End: today, 23:59 local (API expects YYYY-MM-DD; use date string)
-      const end = new Date();
-      end.setHours(23, 59, 59, 999);
-
-      const formatYMDLocal = (d: Date) =>
-        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      filter = {
-        ...filter,
-        set_date: true,
-        start_date: formatYMDLocal(start),
-        end_date: formatYMDLocal(end),
-      };
-    }
 
     const results: Array<{ guid?: string; status: "success" | "error"; error?: string }> = [];
     let successCount = 0;
     let errorCount = 0;
     let totalProcessed = 0;
-    let totalPage = 0;
+    let offset = 0;
+    let totalData = 0;
     const processedGuids = new Set<string>();
 
-    // Iterate through paginated API until no more data
-    // The external API returns current_page/total_page so we stop when finished or when batch < limit.
     while (true) {
-      const { customers, totalData, totalPage: apiTotalPage } = await fetchCustomersPage(page, limit, {
-        filter,
-        order: body?.order,
-        sort: body?.sort,
-      });
-
-      if (apiTotalPage) {
-        totalPage = apiTotalPage;
-      }
+      const { customers, totalData: pageTotalData } = await fetchCustomersPage(offset, limit);
+      totalData = pageTotalData;
 
       if (!customers.length) break;
 
@@ -275,8 +213,7 @@ export async function POST(request: Request) {
         }
 
         if (processedGuids.has(guid)) {
-          // Skip duplicate customer within the same sync run
-          results.push({ guid, status: "error", error: "Duplicate guid in payload, skipped" });
+          results.push({ guid, status: "error", error: "Duplicate guid, skipped" });
           continue;
         }
 
@@ -294,10 +231,10 @@ export async function POST(request: Request) {
           results.push({ guid, status: "error", error: message });
         }
       }
-      page += 1;
 
-      // Stop when we reached last page
-      if ((apiTotalPage && page > apiTotalPage) || customers.length < limit || totalProcessed >= (totalData || 0)) {
+      offset += customers.length;
+
+      if (customers.length < limit || totalProcessed >= totalData) {
         break;
       }
     }
@@ -307,9 +244,9 @@ export async function POST(request: Request) {
       total_processed: totalProcessed,
       success_count: successCount,
       error_count: errorCount,
-      total_pages: totalPage || undefined,
+      total_data: totalData,
       message: "Customer sync v2 completed",
-      sample_errors: results.filter((r) => r.status === "error").slice(0, 5),
+      sample_errors: results.filter((r) => r.status === "error").slice(0, 10),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";

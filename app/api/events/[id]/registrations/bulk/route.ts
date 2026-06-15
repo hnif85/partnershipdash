@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRegistration, checkCustomerByEmail, createCustomer, checkRegistration } from "@/lib/eventRegistrations";
 import { getPublicEventById } from "@/lib/events";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 type ParsedRow = {
   row: number;
@@ -109,6 +110,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { id: eventId } = await params;
     const formData = await request.formData();
     const action = formData.get("action") as string | null;
@@ -318,7 +322,6 @@ export async function POST(
       results,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

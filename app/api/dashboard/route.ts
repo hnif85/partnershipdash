@@ -99,7 +99,7 @@ export async function GET(_request: NextRequest) {
     // 3) Pertumbuhan pembelian per hari (<= daysBack terakhir)
     const dailyPurchasesQuery = `
       WITH date_range AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '${daysBack} days', CURRENT_DATE, '1 day')::date AS date
+        SELECT generate_series(CURRENT_DATE - ($1::int || ' days')::INTERVAL, CURRENT_DATE, '1 day')::date AS date
       ),
       purchases AS (
         SELECT
@@ -127,17 +127,20 @@ export async function GET(_request: NextRequest) {
     // 4) Penggunaan aplikasi per hari (<= daysBack terakhir, debit = penggunaan kredit)
     const dailyUsageQuery = `
       WITH date_range AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '${daysBack} days', CURRENT_DATE, '1 day')::date AS date
+        SELECT generate_series(CURRENT_DATE - ($1::int || ' days')::INTERVAL, CURRENT_DATE, '1 day')::date AS date
       ),
       usages AS (
         SELECT
-          DATE(created_at) AS date,
+          DATE(cmt.created_at) AS date,
           COUNT(*) AS usage_events,
-          COUNT(DISTINCT user_id) AS unique_users,
-          COALESCE(SUM(amount), 0) AS total_amount
-        FROM credit_manager_transactions
-        WHERE LOWER(type) = 'debit'
-        GROUP BY DATE(created_at)
+          COUNT(DISTINCT cmt.user_id) AS unique_users,
+          COALESCE(SUM(cmt.amount), 0) AS total_amount
+        FROM credit_manager_transactions cmt
+        JOIN cms_customers c ON c.guid::uuid = cmt.user_id
+        LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+        WHERE LOWER(cmt.type) = 'debit'
+          AND dee.email IS NULL
+        GROUP BY DATE(cmt.created_at)
       )
       SELECT
         d.date,
@@ -152,7 +155,7 @@ export async function GET(_request: NextRequest) {
     // 4b) Registrasi user baru per hari (<= daysBack terakhir)
     const dailyRegistrationsQuery = `
       WITH date_range AS (
-        SELECT generate_series(CURRENT_DATE - INTERVAL '${daysBack} days', CURRENT_DATE, '1 day')::date AS date
+        SELECT generate_series(CURRENT_DATE - ($1::int || ' days')::INTERVAL, CURRENT_DATE, '1 day')::date AS date
       ),
       registrations AS (
         SELECT DATE(c.created_at) AS date, COUNT(*) AS new_users
@@ -320,9 +323,9 @@ export async function GET(_request: NextRequest) {
       pool.query(usersPurchasedQuery),
       pool.query(transactionsPurchasedQuery),
       pool.query(referralStatsQuery),
-      pool.query(dailyPurchasesQuery),
-      pool.query(dailyUsageQuery),
-      pool.query(dailyRegistrationsQuery),
+      pool.query(dailyPurchasesQuery, [daysBack]),
+      pool.query(dailyUsageQuery, [daysBack]),
+      pool.query(dailyRegistrationsQuery, [daysBack]),
       pool.query(expiringSoonQuery),
       pool.query(totalCustomersQuery),
       pool.query(expiredUsersQuery),

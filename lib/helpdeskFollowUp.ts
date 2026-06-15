@@ -1,8 +1,9 @@
 import { pool } from "./database";
 import { getProductKnowledgeFromDB } from "./helpdeskKnowledge";
 
-const AI_URL = process.env.MEDIAWAVE_AI_URL || "https://ai-module.mediawave.co.id/completions";
-const AI_KEY = process.env.MEDIAWAVE_AI_KEY || "F8B9F7282D17.3c4acf4ee92d90f3036dfec32066c4a3faae3222";
+const AI_URL = process.env.MEDIAWAVE_AI_URL;
+const AI_KEY = process.env.MEDIAWAVE_AI_KEY;
+if (!AI_KEY) throw new Error("MEDIAWAVE_AI_KEY is not configured");
 
 interface ConversationMessage {
   id: number;
@@ -166,11 +167,11 @@ export async function getInActiveConversations(hoursInactive: number = 8): Promi
     FROM helpdesk_conversations_v2
     WHERE status IN ('active', 'pending')
     AND bot_enabled = true
-    AND last_message_at < NOW() - INTERVAL '${hoursInactive} hours'
+    AND last_message_at < NOW() - ($1::int || ' hours')::INTERVAL
     AND (bot_paused_until IS NULL OR bot_paused_until < NOW())
     ORDER BY last_message_at ASC
     LIMIT 50
-  `);
+  `, [hoursInactive]);
 
   return result.rows;
 }

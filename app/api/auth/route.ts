@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 import { ensureCrmSchema } from "@/lib/crmSchema";
+import { checkRateLimit } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || "crm-secret-key-change-in-production");
+const JWT_SECRET = (() => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET environment variable is not configured");
+  return new TextEncoder().encode(secret);
+})();
 
 // Seed default users function
 async function seedDefaultUsers() {
-  const defaultPassword = "password123";
+  const defaultPassword = process.env.DEFAULT_USER_PASSWORD;
+  if (!defaultPassword || defaultPassword.length < 12) {
+    console.warn("DEFAULT_USER_PASSWORD not set or too short; skipping seed users");
+    return;
+  }
   const passwordHash = await bcrypt.hash(defaultPassword, 10);
   
   const defaultUsers = [
@@ -45,6 +54,11 @@ export async function POST(request: NextRequest) {
     if (action === "login") {
       if (!email || !password) {
         return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+      }
+
+      const ip = request.headers.get("x-forwarded-for") || "unknown";
+      if (!checkRateLimit(`login:${ip}`, 20, 60000)) {
+        return NextResponse.json({ error: "Too many login attempts" }, { status: 429 });
       }
 
       const userResult = await pool.query(

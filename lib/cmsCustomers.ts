@@ -495,16 +495,27 @@ export async function getCustomerStats(): Promise<{
   }
 
   const [totalResult, creditResult, debitResult] = await Promise.all([
-    pool.query('SELECT COUNT(*) as count FROM cms_customers'),
     pool.query(`
-      SELECT COUNT(DISTINCT user_id) as count
-      FROM credit_manager_transactions
-      WHERE LOWER(type) = 'credit'
+      SELECT COUNT(DISTINCT c.guid) as count
+      FROM cms_customers c
+      LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+      WHERE dee.email IS NULL
     `),
     pool.query(`
-      SELECT COUNT(DISTINCT user_id) as count
-      FROM credit_manager_transactions
-      WHERE LOWER(type) = 'debit'
+      SELECT COUNT(DISTINCT cmt.user_id) as count
+      FROM credit_manager_transactions cmt
+      JOIN cms_customers c ON c.guid::uuid = cmt.user_id
+      LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+      WHERE LOWER(cmt.type) = 'credit'
+        AND dee.email IS NULL
+    `),
+    pool.query(`
+      SELECT COUNT(DISTINCT cmt.user_id) as count
+      FROM credit_manager_transactions cmt
+      JOIN cms_customers c ON c.guid::uuid = cmt.user_id
+      LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+      WHERE LOWER(cmt.type) = 'debit'
+        AND dee.email IS NULL
     `)
   ]);
 
@@ -820,14 +831,16 @@ export async function getDailySummary(): Promise<{
   // Query untuk new users per hari (cumulative dari awal bulan)
   const newUsersQuery = `
     SELECT
-      DATE(created_at) as date,
+      DATE(c.created_at) as date,
       COUNT(*) as count,
-      SUM(COUNT(*)) OVER (ORDER BY DATE(created_at) ROWS UNBOUNDED PRECEDING) as cumulative
-    FROM cms_customers
-    WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_DATE)
-      AND created_at <= CURRENT_DATE
-    GROUP BY DATE(created_at)
-    ORDER BY DATE(created_at)
+      SUM(COUNT(*)) OVER (ORDER BY DATE(c.created_at) ROWS UNBOUNDED PRECEDING) as cumulative
+    FROM cms_customers c
+    LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
+    WHERE DATE_TRUNC('month', c.created_at) = DATE_TRUNC('month', CURRENT_DATE)
+      AND c.created_at <= CURRENT_DATE
+      AND dee.email IS NULL
+    GROUP BY DATE(c.created_at)
+    ORDER BY DATE(c.created_at)
   `;
 
   // Query untuk finished IDR purchases: monthly distinct users buyers YTD, cumulative

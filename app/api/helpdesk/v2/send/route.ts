@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 import { sendWatZapText } from "@/lib/watZap";
 import { sendDamcorpText } from "@/lib/damcorpWhatsapp";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership", "crm");
+
     const { conversation_id, message, sender_type = "agent" } = await request.json();
 
     if (!conversation_id || !message) {

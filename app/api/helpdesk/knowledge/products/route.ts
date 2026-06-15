@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -32,6 +33,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { content, name } = await request.json();
 
     if (!content) {
@@ -51,7 +55,6 @@ export async function POST(request: NextRequest) {
       product: result.rows[0] 
     });
   } catch (error) {
-    console.error("Failed to save product knowledge:", error);
-    return NextResponse.json({ error: "Failed to save product knowledge" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

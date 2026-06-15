@@ -70,7 +70,9 @@ export async function PUT(
       message: "Event berhasil diupdate",
     });
   } catch (error) {
-    return authErrorResponse(error);
+    console.error("Event PUT error:", error);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 

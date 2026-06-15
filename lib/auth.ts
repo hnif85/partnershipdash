@@ -1,11 +1,11 @@
 import { jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 
-const JWT_SECRET = (() => {
+function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
   if (!secret) throw new Error("JWT_SECRET is not configured");
   return new TextEncoder().encode(secret);
-})();
+}
 
 export interface AuthUser {
   userId: number;
@@ -21,7 +21,7 @@ export async function verifyAuth(headers: Headers): Promise<AuthUser> {
   const token = authHeader.replace("Bearer ", "");
   if (!token) throw new Error("Unauthorized");
 
-  const { payload } = await jwtVerify(token, JWT_SECRET);
+  const { payload } = await jwtVerify(token, getJwtSecret());
   return payload as unknown as AuthUser;
 }
 

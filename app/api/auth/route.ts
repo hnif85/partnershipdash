@@ -5,11 +5,11 @@ import { checkRateLimit } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 
-const JWT_SECRET = (() => {
+function getJwtSecret() {
   const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("JWT_SECRET environment variable is not configured");
+  if (!secret) throw new Error("JWT_SECRET is not configured");
   return new TextEncoder().encode(secret);
-})();
+}
 
 // Seed default users function
 async function seedDefaultUsers() {
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
         .setExpirationTime("24h")
-        .sign(JWT_SECRET);
+        .sign(getJwtSecret());
 
       // Save session
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         
         const userResult = await pool.query(
           "SELECT id, email, name, role, is_active, last_login FROM crm_users WHERE id = $1",
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         
         if (payload.role !== "super_admin") {
           return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         
         if (payload.role !== "super_admin") {
           return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         
         if (payload.role !== "super_admin") {
           return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -269,7 +269,7 @@ export async function POST(request: NextRequest) {
       }
 
       try {
-        const { payload } = await jwtVerify(token, JWT_SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         
         if (payload.role !== "super_admin") {
           return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -312,7 +312,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const { payload } = await jwtVerify(token, JWT_SECRET);
+      const { payload } = await jwtVerify(token, getJwtSecret());
       
       const userResult = await pool.query(
         "SELECT id, email, name, role, is_active, last_login FROM crm_users WHERE id = $1",

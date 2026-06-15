@@ -3,8 +3,15 @@ import type { AIAnalysisResult, LeadScore, ConversationContext } from "./knowled
 import { getProductKnowledgeFromDB } from "./helpdeskKnowledge";
 
 const AI_URL = process.env.MEDIAWAVE_AI_URL;
-const AI_KEY = process.env.MEDIAWAVE_AI_KEY;
-if (!AI_KEY) throw new Error("MEDIAWAVE_AI_KEY is not configured");
+let aiKey: string | undefined;
+
+function getAiKey() {
+  if (!aiKey) {
+    aiKey = process.env.MEDIAWAVE_getAiKey();
+    if (!aiKey) throw new Error("MEDIAWAVE_getAiKey() is not configured");
+  }
+  return aiKey;
+}
 
 export interface SendMessageOptions {
   phoneNumber: string;
@@ -56,7 +63,7 @@ Berikut adalah konteks conversation: ${JSON.stringify(context || {})}`;
     const response = await fetch(AI_URL, {
       method: "POST",
       headers: {
-        "X-Key": AI_KEY,
+        "X-Key": getAiKey(),
         "Content-Type": "application/json",
         accept: "application/json",
       },
@@ -209,7 +216,7 @@ Instruksi PENTING:
 const response = await fetch(AI_URL, {
       method: "POST",
       headers: {
-        "X-Key": AI_KEY,
+        "X-Key": getAiKey(),
         "Content-Type": "application/json",
         accept: "application/json",
       },

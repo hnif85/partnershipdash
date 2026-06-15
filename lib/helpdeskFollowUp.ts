@@ -2,8 +2,15 @@ import { pool } from "./database";
 import { getProductKnowledgeFromDB } from "./helpdeskKnowledge";
 
 const AI_URL = process.env.MEDIAWAVE_AI_URL;
-const AI_KEY = process.env.MEDIAWAVE_AI_KEY;
-if (!AI_KEY) throw new Error("MEDIAWAVE_AI_KEY is not configured");
+let aiKey: string | undefined;
+
+function getAiKey() {
+  if (!aiKey) {
+    aiKey = process.env.MEDIAWAVE_getAiKey();
+    if (!aiKey) throw new Error("MEDIAWAVE_getAiKey() is not configured");
+  }
+  return aiKey;
+}
 
 interface ConversationMessage {
   id: number;
@@ -72,7 +79,7 @@ ${conversationText}`;
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": AI_KEY
+        "Authorization": getAiKey()
       },
       body: JSON.stringify({
         prompt: systemPrompt,
@@ -142,7 +149,7 @@ Buat pesan follow-up (maksimal 1 paragraf, dalam bahasa Indonesia yang natural):
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": AI_KEY
+        "Authorization": getAiKey()
       },
       body: JSON.stringify({
         prompt: systemPrompt,

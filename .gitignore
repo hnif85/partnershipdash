@@ -116,6 +116,16 @@ python_script/
 
 # user data directories
 BENAR-MWX-Data/
+BENAR-MWX-Data-2026/
 mwxrelated/
 reports/
 to_delete/
+
+# runtime artifacts
+server.err
+server.log
+token.tmp
+sync_credit_daily.mjs
+
+# opencode
+.opencode/

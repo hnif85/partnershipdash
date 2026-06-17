@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "exclude-test-emails": "npx tsx exclude_test_emails.ts"
   },
   "dependencies": {
     "@types/bcryptjs": "^3.0.0",

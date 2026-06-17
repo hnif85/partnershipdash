@@ -126,9 +126,10 @@ export default function EditEventPage() {
     setError(null);
 
     try {
+      const token = localStorage.getItem("crm_token");
       const response = await fetch(`/api/events/${eventId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(formData),
       });
 

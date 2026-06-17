@@ -180,10 +180,7 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error("Error creating excluded email:", error);
-    return NextResponse.json(
-      { error: "Failed to create excluded email" },
-      { status: 500 }
-    );
+    return authErrorResponse(error);
   }
 }
 
@@ -236,10 +233,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ email: result });
   } catch (error) {
     console.error("Error updating excluded email:", error);
-    return NextResponse.json(
-      { error: "Failed to update excluded email" },
-      { status: 500 }
-    );
+    return authErrorResponse(error);
   }
 }
 
@@ -271,9 +265,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, deletedEmail: result.email });
   } catch (error) {
     console.error("Error deleting excluded email:", error);
-    return NextResponse.json(
-      { error: "Failed to delete excluded email" },
-      { status: 500 }
-    );
+    return authErrorResponse(error);
   }
 }

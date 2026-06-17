@@ -66,9 +66,10 @@ export default function ReferralManagePage() {
 
       const method = editingPartner ? 'PUT' : 'POST';
 
+      const token = localStorage.getItem("crm_token");
       const res = await fetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(formData)
       });
 
@@ -109,8 +110,10 @@ export default function ReferralManagePage() {
     setError(null);
 
     try {
+      const token = localStorage.getItem("crm_token");
       const res = await fetch(`/api/referral/manage/${partner.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {

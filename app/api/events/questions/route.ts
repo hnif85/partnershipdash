@@ -7,6 +7,7 @@ import {
   deleteQuestion,
 } from "@/lib/eventQuestions";
 import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
+import { sanitizeText } from "@/lib/security";
 
 // GET /api/events/questions?eventId=xxx - Get questions for an event
 export async function GET(request: NextRequest) {
@@ -14,12 +15,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const eventId = searchParams.get("eventId");
 
+    let questions;
     if (eventId) {
-      const questions = await getQuestionsByEvent(eventId);
-      return NextResponse.json({ questions });
+      questions = await getQuestionsByEvent(eventId);
+    } else {
+      questions = await getDefaultQuestions();
     }
 
-    const questions = await getDefaultQuestions();
     return NextResponse.json({ questions });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
@@ -51,12 +53,12 @@ export async function POST(request: NextRequest) {
 
     const question = await createQuestion({
       event_id: body.event_id || null,
-      section: body.section,
+      section: sanitizeText(body.section, 100),
       section_order: body.section_order,
       order_index: body.order_index,
-      question_text: body.question_text,
+      question_text: sanitizeText(body.question_text, 500),
       question_type: body.question_type || "single_choice",
-      options: body.options,
+      options: body.options.map((o: string) => sanitizeText(o, 200)),
       is_required: body.is_required,
     });
 

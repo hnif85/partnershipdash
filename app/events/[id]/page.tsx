@@ -155,8 +155,10 @@ export default function EventDetailPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus event ini?")) return;
 
     try {
+      const token = localStorage.getItem("crm_token");
       const response = await fetch(`/api/events/${eventId}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
@@ -181,8 +183,10 @@ export default function EventDetailPage() {
       formData.append("action", "preview");
 
       console.log('[CSV IMPORT] Sending request...');
+      const token = localStorage.getItem("crm_token");
       const response = await fetch(`/api/events/${eventId}/registrations/bulk`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -221,8 +225,10 @@ export default function EventDetailPage() {
       const formData = new FormData();
       formData.append("file", file);
 
+      const token = localStorage.getItem("crm_token");
       const response = await fetch(`/api/events/${eventId}/registrations/bulk`, {
         method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 

@@ -81,6 +81,9 @@ export default function RegisterEventPage() {
   const [needsQuestionnaire, setNeedsQuestionnaire] = useState(false);
   const [isNotUmkm, setIsNotUmkm] = useState(false);
 
+  const [honeypot, setHoneypot] = useState("");
+  const [submitCooldown, setSubmitCooldown] = useState(false);
+
   const [formData, setFormData] = useState<FormData>({
     full_name: "",
     phone_number: "",
@@ -344,7 +347,16 @@ export default function RegisterEventPage() {
     e.preventDefault();
     setError(null);
 
-    if (!validateStep2()) return;
+    if (honeypot) return;
+
+    if (submitCooldown) return;
+    setSubmitCooldown(true);
+    setTimeout(() => setSubmitCooldown(false), 5000);
+
+    if (!validateStep2()) {
+      setSubmitCooldown(false);
+      return;
+    }
 
     setSubmitting(true);
 
@@ -352,7 +364,7 @@ export default function RegisterEventPage() {
       const response = await fetch(`/api/events-public/${eventId}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, website: honeypot }),
       });
 
       const data = await response.json();
@@ -656,6 +668,7 @@ export default function RegisterEventPage() {
                         name="full_name"
                         value={formData.full_name}
                         onChange={handleChange}
+                        maxLength={200}
                         className={`neo-input w-full p-3 border-2 border-slate-900 focus:bg-orange-50 outline-none transition-colors text-sm font-bold bg-white ${
                           formErrors.full_name ? "border-orange-600 bg-orange-50" : ""
                         }`}
@@ -675,6 +688,7 @@ export default function RegisterEventPage() {
                         name="phone_number"
                         value={formData.phone_number}
                         onChange={handleChange}
+                        maxLength={20}
                         className={`neo-input w-full p-3 border-2 border-slate-900 focus:bg-orange-50 outline-none transition-colors text-sm font-bold bg-white ${
                           formErrors.phone_number ? "border-orange-600 bg-orange-50" : ""
                         }`}
@@ -694,8 +708,22 @@ export default function RegisterEventPage() {
                         name="business_name"
                         value={formData.business_name}
                         onChange={handleChange}
+                        maxLength={200}
                         className="neo-input w-full p-3 border-2 border-slate-900 focus:bg-orange-50 outline-none transition-colors text-sm font-bold bg-white"
                         placeholder="Nama usaha Anda (opsional)"
+                      />
+                    </div>
+
+                    {/* Honeypot - hidden from users, traps bots */}
+                    <div style={{ position: "absolute", left: "-9999px", opacity: 0, height: 0, overflow: "hidden" }} aria-hidden="true">
+                      <label>Leave this empty</label>
+                      <input
+                        type="text"
+                        name="website"
+                        value={honeypot}
+                        onChange={(e) => setHoneypot(e.target.value)}
+                        tabIndex={-1}
+                        autoComplete="off"
                       />
                     </div>
                   </div>

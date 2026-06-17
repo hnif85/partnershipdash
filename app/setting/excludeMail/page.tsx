@@ -106,10 +106,11 @@ export default function ExcludeMailPage() {
       const body = editingEmail
         ? { oldEmail: editingEmail.email, ...formData }
         : formData;
+      const token = localStorage.getItem("crm_token");
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
 
@@ -166,8 +167,10 @@ export default function ExcludeMailPage() {
     if (!confirm("Apakah Anda yakin ingin menghapus email ini?")) return;
 
     try {
+      const token = localStorage.getItem("crm_token");
       const res = await fetch(`/api/setting/excludeMail?email=${encodeURIComponent(email)}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await res.json();

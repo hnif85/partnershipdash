@@ -100,9 +100,10 @@ export default function AttendancePage() {
     setSubmitting(true);
 
     try {
+      const token = localStorage.getItem("crm_token");
       const response = await fetch(`/api/events/${eventId}/attendance`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ email: emailInput }),
       });
 

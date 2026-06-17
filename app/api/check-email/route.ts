@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkCustomerByEmail, checkRegistration } from "@/lib/eventRegistrations";
 import { pool } from "@/lib/database";
+import { sanitizeEmail, checkRateLimit, getRateLimitKey } from "@/lib/security";
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,9 +18,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    // Rate limit: 3 requests per IP per 10 seconds (strict to prevent enumeration)
+    const rateLimitKey = getRateLimitKey(request, "check-email");
+    const { allowed } = await checkRateLimit(rateLimitKey, 3, 10000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Terlalu banyak permintaan. Silakan coba lagi nanti." },
+        { status: 429 }
+      );
+    }
 
-    const { exists: customerExists, guid: customerGuid } = await checkCustomerByEmail(normalizedEmail);
+    const normalizedEmail = sanitizeEmail(email);
+    if (!emailRegex.test(normalizedEmail)) {
+      return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
+    }
+
+    const { exists: customerExists } = await checkCustomerByEmail(normalizedEmail);
 
     let existingRegistration = null;
     if (eventId) {
@@ -27,9 +41,9 @@ export async function GET(request: NextRequest) {
       if (is_registered && registration) {
         existingRegistration = {
           id: registration.id,
-          full_name: registration.full_name,
-          phone_number: registration.phone_number,
-          business_name: registration.business_name,
+          full_name: registration.full_name || "",
+          phone_number: registration.phone_number || "",
+          business_name: registration.business_name || "",
         };
       }
     }
@@ -47,7 +61,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       exists_in_customers: customerExists,
-      customer_guid: customerGuid,
       already_registered: existingRegistration !== null,
       existing_registration: existingRegistration,
       has_questionnaire_answers: hasQuestionnaireAnswers,

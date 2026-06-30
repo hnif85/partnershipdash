@@ -14,6 +14,7 @@ type TransactionFromAPI = {
   amount?: number;
   user_product_id?: string;
   product_name?: string;
+  user_product_name?: string;
   product_package?: string;
   type?: string;
   user_id?: string;
@@ -122,7 +123,7 @@ async function upsertTransaction(transaction: TransactionFromAPI): Promise<void>
     transaction.agent_id,
     transaction.amount,
     transaction.user_product_id,
-    transaction.product_name,
+    transaction.user_product_name ?? transaction.product_name,
     transaction.product_package,
     transaction.type,
     transaction.user_id,

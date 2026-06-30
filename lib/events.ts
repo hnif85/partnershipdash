@@ -8,6 +8,8 @@ export type TrainingEventRow = {
   id?: string;
   name?: string;
   event_date?: string;
+  start_date?: string;
+  end_date?: string;
   id_partner?: string;
   partner?: string;
   model?: string;
@@ -52,6 +54,8 @@ function mapEvent(row: TrainingEventRow): TrainingEventRow {
     registration_deadline: row.registration_deadline ?? undefined,
     description: row.description || '',
     location: row.location || '',
+    start_date: row.start_date || row.event_date || null,
+    end_date: row.end_date || row.event_date || null,
   };
 }
 
@@ -100,6 +104,8 @@ export async function getEvents(
       te.id,
       te.name,
       te.event_date,
+      te.start_date,
+      te.end_date,
       te.id_partner,
       te.partner,
       te.model,
@@ -114,7 +120,7 @@ export async function getEvents(
       te.updated_at
     FROM training_events te
     ${whereClause}
-    ORDER BY te.event_date DESC
+    ORDER BY COALESCE(te.start_date, te.event_date) DESC
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
   `;
 
@@ -173,6 +179,8 @@ export async function getEventById(id: string): Promise<TrainingEventRow | null>
       id,
       name,
       event_date,
+      start_date,
+      end_date,
       id_partner,
       partner,
       model,
@@ -198,6 +206,8 @@ export async function getEventById(id: string): Promise<TrainingEventRow | null>
 export async function createEvent(event: {
   name: string;
   event_date: string;
+  start_date?: string;
+  end_date?: string;
   id_partner?: string;
   partner?: string;
   location?: string;
@@ -214,13 +224,15 @@ export async function createEvent(event: {
 
   const result = await pool.query<TrainingEventRow>(
     `INSERT INTO training_events (
-      name, event_date, id_partner, partner, location, event_type,
+      name, event_date, start_date, end_date, id_partner, partner, location, event_type,
       description, max_participants, registration_deadline, is_active, created_by, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
     RETURNING *`,
     [
       event.name,
-      event.event_date,
+      event.event_date || null,
+      event.start_date || event.event_date || null,
+      event.end_date || event.event_date || null,
       event.id_partner || null,
       event.partner || null,
       event.location || '',
@@ -242,6 +254,8 @@ export async function updateEvent(
   event: Partial<{
     name: string;
     event_date: string;
+    start_date: string;
+    end_date: string;
     id_partner: string;
     partner: string;
     location: string;
@@ -267,7 +281,17 @@ export async function updateEvent(
   }
   if (event.event_date !== undefined) {
     updates.push(`event_date = $${paramIndex}`);
-    params.push(event.event_date);
+    params.push(event.event_date || null);
+    paramIndex++;
+  }
+  if (event.start_date !== undefined) {
+    updates.push(`start_date = $${paramIndex}`);
+    params.push(event.start_date || null);
+    paramIndex++;
+  }
+  if (event.end_date !== undefined) {
+    updates.push(`end_date = $${paramIndex}`);
+    params.push(event.end_date || null);
     paramIndex++;
   }
   if (event.id_partner !== undefined) {
@@ -302,7 +326,7 @@ export async function updateEvent(
   }
   if (event.registration_deadline !== undefined) {
     updates.push(`registration_deadline = $${paramIndex}`);
-    params.push(event.registration_deadline);
+    params.push(event.registration_deadline || null);
     paramIndex++;
   }
   if (event.is_active !== undefined) {
@@ -367,7 +391,7 @@ export async function getPublicEvents(upcoming: boolean = true): Promise<PublicE
   let whereConditions = [`te.is_active = true`];
   
   if (upcoming) {
-    whereConditions.push(`te.event_date >= CURRENT_DATE`);
+    whereConditions.push(`COALESCE(te.start_date, te.event_date) >= CURRENT_DATE`);
   }
 
   const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
@@ -393,7 +417,7 @@ export async function getPublicEvents(upcoming: boolean = true): Promise<PublicE
     LEFT JOIN event_registrations er ON er.event_id = te.id
     ${whereClause}
     GROUP BY te.id
-    ORDER BY te.event_date ASC
+    ORDER BY COALESCE(te.start_date, te.event_date) ASC
   `;
 
   const result = await pool.query(query);
@@ -464,7 +488,7 @@ export async function getRelatedEvents(eventId: string, limit: number = 3): Prom
     LEFT JOIN event_registrations er ON er.event_id = te.id
     WHERE te.id != $1 AND te.is_active = true
     GROUP BY te.id
-    ORDER BY te.event_date ASC
+    ORDER BY COALESCE(te.start_date, te.event_date) ASC
     LIMIT $2
   `;
 

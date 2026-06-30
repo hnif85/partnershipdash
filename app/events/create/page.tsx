@@ -13,6 +13,8 @@ type Partner = {
 type FormData = {
   name: string;
   event_date: string;
+  start_date: string;
+  end_date: string;
   id_partner: string;
   partner: string;
   location: string;
@@ -32,6 +34,8 @@ export default function CreateEventPage() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     event_date: '',
+    start_date: '',
+    end_date: '',
     id_partner: '',
     partner: '',
     location: '',
@@ -149,17 +153,33 @@ export default function CreateEventPage() {
                 />
               </div>
 
-              {/* Tanggal Event */}
+              {/* Tanggal Mulai */}
               <div>
-                <label htmlFor="event_date" className="mb-2 block text-sm font-medium text-zinc-700">
-                  Tanggal Event <span className="text-red-500">*</span>
+                <label htmlFor="start_date" className="mb-2 block text-sm font-medium text-zinc-700">
+                  Tanggal Mulai <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
-                  id="event_date"
-                  name="event_date"
+                  id="start_date"
+                  name="start_date"
                   required
-                  value={formData.event_date}
+                  value={formData.start_date}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                />
+              </div>
+
+              {/* Tanggal Selesai */}
+              <div>
+                <label htmlFor="end_date" className="mb-2 block text-sm font-medium text-zinc-700">
+                  Tanggal Selesai <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  id="end_date"
+                  name="end_date"
+                  required
+                  value={formData.end_date}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
                 />
@@ -196,9 +216,9 @@ export default function CreateEventPage() {
                   className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
                 >
                   <option value="">Pilih Partner...</option>
-                  {partners.map(partner => (
-                    <option key={partner.partner + '-' + partner.code} value={partner.partner}>
-                      {partner.partner} ({partner.code})
+                  {partners.map((partner, i) => (
+                    <option key={partner.partner + '-' + (partner.code || '') + '-' + i} value={partner.partner}>
+                      {partner.partner}{partner.code ? ` (${partner.code})` : ''}
                     </option>
                   ))}
                 </select>

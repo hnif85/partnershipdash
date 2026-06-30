@@ -50,7 +50,9 @@ export async function PUT(
 
     const event = await updateEvent(id, {
       name: body.name,
-      event_date: body.event_date,
+      event_date: body.event_date || body.start_date,
+      start_date: body.start_date,
+      end_date: body.end_date,
       id_partner: body.id_partner,
       partner: body.partner,
       location: body.location,

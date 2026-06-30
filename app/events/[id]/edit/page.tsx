@@ -14,6 +14,8 @@ type Event = {
   id: string;
   name: string;
   event_date: string;
+  start_date: string;
+  end_date: string;
   id_partner: string;
   partner: string;
   location: string;
@@ -27,6 +29,8 @@ type Event = {
 type FormData = {
   name: string;
   event_date: string;
+  start_date: string;
+  end_date: string;
   id_partner: string;
   partner: string;
   location: string;
@@ -51,6 +55,8 @@ export default function EditEventPage() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     event_date: '',
+    start_date: '',
+    end_date: '',
     id_partner: '',
     partner: '',
     location: '',
@@ -68,7 +74,9 @@ export default function EditEventPage() {
         // Fetch partners
         const eventsRes = await fetch('/api/events');
         const eventsData = await eventsRes.json();
+        let partnerList: Partner[] = [];
         if (eventsData.partners) {
+          partnerList = eventsData.partners;
           setPartners(eventsData.partners);
         }
 
@@ -81,9 +89,16 @@ export default function EditEventPage() {
         }
 
         setEvent(eventData.event);
+        // Ensure current partner is in dropdown options
+        if (eventData.event.partner && !partnerList.some(p => p.partner === eventData.event.partner)) {
+          setPartners(prev => [...prev, { partner: eventData.event.partner, code: '' }]);
+        }
+        const toDateInput = (val: string) => val ? val.split('T')[0] : '';
         setFormData({
           name: eventData.event.name || '',
-          event_date: eventData.event.event_date || '',
+          event_date: toDateInput(eventData.event.start_date || eventData.event.event_date),
+          start_date: toDateInput(eventData.event.start_date || eventData.event.event_date),
+          end_date: toDateInput(eventData.event.end_date || eventData.event.event_date),
           id_partner: eventData.event.id_partner || '',
           partner: eventData.event.partner || '',
           location: eventData.event.location || '',
@@ -224,17 +239,33 @@ export default function EditEventPage() {
                 />
               </div>
 
-              {/* Tanggal Event */}
+              {/* Tanggal Mulai */}
               <div>
-                <label htmlFor="event_date" className="mb-2 block text-sm font-medium text-zinc-700">
-                  Tanggal Event <span className="text-red-500">*</span>
+                <label htmlFor="start_date" className="mb-2 block text-sm font-medium text-zinc-700">
+                  Tanggal Mulai <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="date"
-                  id="event_date"
-                  name="event_date"
+                  id="start_date"
+                  name="start_date"
                   required
-                  value={formData.event_date}
+                  value={formData.start_date}
+                  onChange={handleChange}
+                  className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+                />
+              </div>
+
+              {/* Tanggal Selesai */}
+              <div>
+                <label htmlFor="end_date" className="mb-2 block text-sm font-medium text-zinc-700">
+                  Tanggal Selesai <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  id="end_date"
+                  name="end_date"
+                  required
+                  value={formData.end_date}
                   onChange={handleChange}
                   className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
                 />
@@ -271,9 +302,9 @@ export default function EditEventPage() {
                   className="w-full rounded-lg border border-zinc-200 px-4 py-2.5 focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
                 >
                   <option value="">Pilih Partner...</option>
-                  {partners.map(partner => (
-                    <option key={partner.partner + '-' + partner.code} value={partner.partner}>
-                      {partner.partner} ({partner.code})
+                  {partners.map((partner, i) => (
+                    <option key={partner.partner + '-' + (partner.code || '') + '-' + i} value={partner.partner}>
+                      {partner.partner}{partner.code ? ` (${partner.code})` : ''}
                     </option>
                   ))}
                 </select>

@@ -32,7 +32,7 @@ const menuGroups: Record<User["role"], NavGroup[]> = {
     { label: "Overview", items: [{ href: "/", label: "Dashboard" }] },
     { label: "Data", items: [{ href: "/customers", label: "Customers" }] },
     { label: "Finance", items: [{ href: "/sales", label: "Sales" }] },
-    { label: "Analytics", items: [{ href: "/referral", label: "Referral" }] },
+    { label: "Analytics", items: [{ href: "/referral", label: "Referral" }, { href: "/usage", label: "Usage" }] },
     {
       label: "Targets",
       items: [{ href: "/activityTarget", label: "Activity Targets" }, ...activityItems],
@@ -51,7 +51,7 @@ const menuGroups: Record<User["role"], NavGroup[]> = {
     { label: "Overview", items: [{ href: "/", label: "Dashboard" }] },
     { label: "Data", items: [{ href: "/customers", label: "Customers" }] },
     { label: "Finance", items: [{ href: "/sales", label: "Sales" }] },
-    { label: "Analytics", items: [{ href: "/referral", label: "Referral" }] },
+    { label: "Analytics", items: [{ href: "/referral", label: "Referral" }, { href: "/usage", label: "Usage" }] },
     {
       label: "Targets",
       items: [{ href: "/activityTarget", label: "Activity Targets" }, ...activityItems],

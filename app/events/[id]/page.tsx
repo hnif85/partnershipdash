@@ -8,6 +8,8 @@ type Event = {
   id: string;
   name: string;
   event_date: string;
+  start_date: string;
+  end_date: string;
   partner: string;
   location: string;
   event_type: string;
@@ -149,6 +151,59 @@ export default function EventDetailPage() {
       attended: "bg-purple-100 text-purple-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
+  };
+
+  const handleCancel = async () => {
+    if (!confirm("Batalkan event ini? Peserta tetap bisa melihat, tapi event tidak akan muncul di halaman publik.")) return;
+    try {
+      const token = localStorage.getItem("crm_token");
+      const response = await fetch(`/api/events/${eventId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ is_active: false }),
+      });
+      if (!response.ok) throw new Error("Gagal membatalkan event");
+      fetchData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Terjadi kesalahan");
+    }
+  };
+
+  const handleConfirmRegistration = async (registrationId: string) => {
+    try {
+      const token = localStorage.getItem("crm_token");
+      const response = await fetch(`/api/events/${eventId}/registrations/${registrationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "confirmed" }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Gagal mengkonfirmasi peserta");
+      }
+      fetchData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Terjadi kesalahan");
+    }
+  };
+
+  const handleCancelRegistration = async (registrationId: string) => {
+    if (!confirm("Batalkan pendaftaran peserta ini?")) return;
+    try {
+      const token = localStorage.getItem("crm_token");
+      const response = await fetch(`/api/events/${eventId}/registrations/${registrationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: "cancelled" }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Gagal membatalkan peserta");
+      }
+      fetchData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Terjadi kesalahan");
+    }
   };
 
   const handleDelete = async () => {
@@ -333,6 +388,14 @@ export default function EventDetailPage() {
               >
                 Edit Event
               </Link>
+              {event.is_active && (
+                <button
+                  onClick={handleCancel}
+                  className="rounded-lg border border-amber-200 bg-white px-4 py-2 text-sm font-medium text-amber-600 shadow-sm transition hover:bg-amber-50"
+                >
+                  Batalkan
+                </button>
+              )}
               <button
                 onClick={handleDelete}
                 className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50"
@@ -356,9 +419,15 @@ export default function EventDetailPage() {
               <h2 className="mb-4 text-lg font-semibold text-[#0f172a]">Detail Event</h2>
               <dl className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
-                  <dt className="text-sm text-zinc-500">Tanggal</dt>
+                  <dt className="text-sm text-zinc-500">Tanggal Mulai</dt>
                   <dd className="col-span-2 text-sm font-medium text-[#0f172a]">
-                    {formatDate(event.event_date)}
+                    {formatDate(event.start_date || event.event_date)}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <dt className="text-sm text-zinc-500">Tanggal Selesai</dt>
+                  <dd className="col-span-2 text-sm font-medium text-[#0f172a]">
+                    {formatDate(event.end_date || event.event_date)}
                   </dd>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -489,6 +558,7 @@ export default function EventDetailPage() {
                     <th className="px-4 py-3 text-left font-medium text-zinc-600">Status</th>
                     <th className="px-4 py-3 text-left font-medium text-zinc-600">Kuesioner</th>
                     <th className="px-4 py-3 text-left font-medium text-zinc-600">Tanggal Daftar</th>
+                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -554,6 +624,25 @@ export default function EventDetailPage() {
                         </button>
                       </td>
                       <td className="px-4 py-3 text-zinc-600">{formatDate(reg.registered_at)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1">
+                          {reg.status !== "cancelled" ? (
+                            <button
+                              onClick={() => handleCancelRegistration(reg.id)}
+                              className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-100"
+                            >
+                              Batal
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleConfirmRegistration(reg.id)}
+                              className="rounded-lg border border-green-200 bg-green-50 px-2 py-1 text-xs font-medium text-green-700 transition hover:bg-green-100"
+                            >
+                              Konfirmasi
+                            </button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

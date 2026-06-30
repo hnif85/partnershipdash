@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validate required fields
-    if (!body.name || !body.event_date) {
+    if (!body.name || (!body.event_date && !body.start_date)) {
       return NextResponse.json({ error: "Nama event dan tanggal event wajib diisi" }, { status: 400 });
     }
 
@@ -57,7 +57,9 @@ export async function POST(request: NextRequest) {
 
     const event = await createEvent({
       name: body.name,
-      event_date: body.event_date,
+      event_date: body.event_date || body.start_date,
+      start_date: body.start_date,
+      end_date: body.end_date,
       id_partner: body.id_partner,
       partner: body.partner,
       location: body.location,

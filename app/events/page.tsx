@@ -3,12 +3,15 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import CalendarView from "./CalendarView";
 
 // Types
 type Event = {
   id: string;
   name: string;
   event_date: string;
+  start_date: string;
+  end_date: string;
   partner: string;
   location: string;
   event_type: string;
@@ -40,6 +43,7 @@ export default function EventsPage() {
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [partnerFilter, setPartnerFilter] = useState(searchParams.get('partnerFilter') || 'all');
   const [statusFilter, setStatusFilter] = useState(searchParams.get('statusFilter') || 'all');
+  const [view, setView] = useState<'table' | 'calendar'>('table');
 
   const page = parseInt(searchParams.get('page') || '1');
 
@@ -113,6 +117,20 @@ export default function EventsPage() {
               </p>
             </div>
             <div className="flex gap-3">
+              <div className="flex overflow-hidden rounded-lg border border-zinc-200">
+                <button
+                  onClick={() => setView('table')}
+                  className={`px-3 py-2 text-sm font-medium transition ${view === 'table' ? 'bg-[#1f3c88] text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
+                >
+                  Tabel
+                </button>
+                <button
+                  onClick={() => setView('calendar')}
+                  className={`px-3 py-2 text-sm font-medium transition ${view === 'calendar' ? 'bg-[#1f3c88] text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
+                >
+                  Kalender
+                </button>
+              </div>
               <Link
                 href="/events/create"
                 className="rounded-lg bg-[#1f3c88] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1f3c88]/90"
@@ -189,135 +207,142 @@ export default function EventsPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1f3c88] border-t-transparent"></div>
-            </div>
-          ) : data.events?.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <p className="text-zinc-500">Belum ada event</p>
-              <Link
-                href="/events/create"
-                className="mt-2 text-sm font-medium text-[#1f3c88] hover:underline"
-              >
-                Buat event pertama
-              </Link>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-zinc-50">
-                  <tr>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">No</th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Nama Event</th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Tanggal</th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Partner</th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Lokasi</th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Tipe</th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Status</th>
-                    <th className="px-4 py-3 text-left font-medium text-zinc-600">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {data.events?.map((event, index) => (
-                    <tr key={event.id} className="hover:bg-zinc-50">
-                      <td className="px-4 py-3 text-zinc-600">
-                        {(page - 1) * 10 + index + 1}
-                      </td>
-                      <td className="px-4 py-3 font-medium text-[#0f172a]">
-                        {event.name}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-600">
-                        {formatDate(event.event_date)}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-600">
-                        {event.partner || '-'}
-                      </td>
-                      <td className="px-4 py-3 text-zinc-600">
-                        {event.location || '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getEventTypeBadge(event.event_type)}`}>
-                          {event.event_type === 'online' ? 'Online' : 'Offline'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadge(event.is_active)}`}>
-                          {event.is_active ? 'Aktif' : 'Tidak Aktif'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <Link
-                            href={`/events/${event.id}`}
-                            className="text-xs font-medium text-[#1f3c88] hover:underline"
-                          >
-                            Lihat
-                          </Link>
-                          <Link
-                            href={`/events/${event.id}/edit`}
-                            className="text-xs font-medium text-zinc-600 hover:underline"
-                          >
-                            Edit
-                          </Link>
-                          <button
-                            onClick={() => {
-                              const url = `${window.location.origin}/public-events/${event.id}/register`;
-                              navigator.clipboard.writeText(url);
-                              alert('Link berhasil disalin!');
-                            }}
-                            className="text-xs font-medium text-green-600 hover:underline"
-                          >
-                            Copy Link
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Pagination */}
-          {data.total_pages && data.total_pages > 1 && (
-            <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3">
-              <p className="text-sm text-zinc-600">
-                Halaman {data.page} dari {data.total_pages}
-              </p>
-              <div className="flex gap-2">
-                {data.page && data.page > 1 && (
-                  <Link
-                    href={`/events?${new URLSearchParams({
-                      page: (data.page - 1).toString(),
-                      search,
-                      partnerFilter,
-                      statusFilter,
-                    }).toString()}`}
-                    className="rounded-lg border border-zinc-200 px-3 py-1 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
-                  >
-                    Prev
-                  </Link>
-                )}
-                {data.page && data.page < data.total_pages && (
-                  <Link
-                    href={`/events?${new URLSearchParams({
-                      page: (data.page + 1).toString(),
-                      search,
-                      partnerFilter,
-                      statusFilter,
-                    }).toString()}`}
-                    className="rounded-lg border border-zinc-200 px-3 py-1 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
-                  >
-                    Next
-                  </Link>
-                )}
+        {/* Table View */}
+        {view === 'table' && (
+          <div className="rounded-xl border border-zinc-200 bg-white shadow-sm overflow-hidden">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1f3c88] border-t-transparent"></div>
               </div>
-            </div>
-          )}
-        </div>
+            ) : data.events?.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-zinc-500">Belum ada event</p>
+                <Link
+                  href="/events/create"
+                  className="mt-2 text-sm font-medium text-[#1f3c88] hover:underline"
+                >
+                  Buat event pertama
+                </Link>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-zinc-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">No</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">Nama Event</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">Tanggal</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">Partner</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">Lokasi</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">Tipe</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">Status</th>
+                      <th className="px-4 py-3 text-left font-medium text-zinc-600">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {data.events?.map((event, index) => (
+                      <tr key={event.id} className="hover:bg-zinc-50">
+                        <td className="px-4 py-3 text-zinc-600">
+                          {(page - 1) * 10 + index + 1}
+                        </td>
+                        <td className="px-4 py-3 font-medium text-[#0f172a]">
+                          {event.name}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          {formatDate(event.start_date || event.event_date)} - {formatDate(event.end_date || event.event_date)}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          {event.partner || '-'}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-600">
+                          {event.location || '-'}
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${getEventTypeBadge(event.event_type)}`}>
+                            {event.event_type === 'online' ? 'Online' : 'Offline'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${getStatusBadge(event.is_active)}`}>
+                            {event.is_active ? 'Aktif' : 'Tidak Aktif'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-2">
+                            <Link
+                              href={`/events/${event.id}`}
+                              className="text-xs font-medium text-[#1f3c88] hover:underline"
+                            >
+                              Lihat
+                            </Link>
+                            <Link
+                              href={`/events/${event.id}/edit`}
+                              className="text-xs font-medium text-zinc-600 hover:underline"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              onClick={() => {
+                                const url = `${window.location.origin}/public-events/${event.id}/register`;
+                                navigator.clipboard.writeText(url);
+                                alert('Link berhasil disalin!');
+                              }}
+                              className="text-xs font-medium text-green-600 hover:underline"
+                            >
+                              Copy Link
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {data.total_pages && data.total_pages > 1 && (
+              <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3">
+                <p className="text-sm text-zinc-600">
+                  Halaman {data.page} dari {data.total_pages}
+                </p>
+                <div className="flex gap-2">
+                  {data.page && data.page > 1 && (
+                    <Link
+                      href={`/events?${new URLSearchParams({
+                        page: (data.page - 1).toString(),
+                        search,
+                        partnerFilter,
+                        statusFilter,
+                      }).toString()}`}
+                      className="rounded-lg border border-zinc-200 px-3 py-1 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
+                    >
+                      Prev
+                    </Link>
+                  )}
+                  {data.page && data.page < data.total_pages && (
+                    <Link
+                      href={`/events?${new URLSearchParams({
+                        page: (data.page + 1).toString(),
+                        search,
+                        partnerFilter,
+                        statusFilter,
+                      }).toString()}`}
+                      className="rounded-lg border border-zinc-200 px-3 py-1 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
+                    >
+                      Next
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Calendar View */}
+        {view === 'calendar' && (
+          <CalendarView events={data.events || []} />
+        )}
       </div>
     </main>
   );

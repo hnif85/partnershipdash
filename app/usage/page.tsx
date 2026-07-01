@@ -14,6 +14,7 @@ type UserUsage = {
   event_usage: number;
   non_event_usage: number;
   last_usage_at: string;
+  is_user_benar: boolean;
 };
 
 type UsageData = {
@@ -48,51 +49,49 @@ export default function UsagePage() {
 
   const [startDate, setStartDate] = useState(() => daysAgo(30));
   const [endDate, setEndDate] = useState(today);
-
-  const setRange = (days: number) => {
-    setStartDate(daysAgo(days));
-    setEndDate(today());
-  };
-
-  const presets = [
-    { label: "7 Hari", days: 7 },
-    { label: "30 Hari", days: 30 },
-    { label: "90 Hari", days: 90 },
-    { label: "1 Tahun", days: 365 },
-  ];
+  const [userBenarOnly, setUserBenarOnly] = useState(false);
   const [productFilter, setProductFilter] = useState("");
   const [partnerFilter, setPartnerFilter] = useState("");
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+
+  // Committed filter values — only update on "Cari" click
+  const [committed, setCommitted] = useState({ startDate: "", endDate: "", productFilter: "", partnerFilter: "", search: "", userBenarOnly: false });
+
   const [sortBy, setSortBy] = useState("last_usage_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const pageSize = 50;
 
-  useEffect(() => {
+  const applyFilters = () => {
+    setCommitted({ startDate, endDate, productFilter, partnerFilter, search: searchInput, userBenarOnly });
     setPage(1);
-  }, [startDate, endDate, productFilter, partnerFilter, search, sortBy, sortOrder]);
+  };
 
   useEffect(() => {
     fetchData();
-  }, [startDate, endDate, productFilter, partnerFilter, search, sortBy, sortOrder, page]);
+  }, [committed, sortBy, sortOrder, page]);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({
-        start_date: startDate,
-        end_date: endDate,
+        start_date: committed.startDate,
+        end_date: committed.endDate,
         page: page.toString(),
         limit: pageSize.toString(),
       });
       params.set("sort_by", sortBy);
       params.set("sort_order", sortOrder);
-      if (productFilter) params.set("product", productFilter);
-      if (partnerFilter) params.set("partner", partnerFilter);
-      if (search.trim()) params.set("search", search.trim());
+      if (committed.productFilter) params.set("product", committed.productFilter);
+      if (committed.partnerFilter) params.set("partner", committed.partnerFilter);
+      if (committed.search.trim()) params.set("search", committed.search.trim());
+      if (committed.userBenarOnly) params.set("user_benar", "true");
 
-      const res = await fetch(`/api/usage?${params}`, { cache: "no-store" });
+      const token = localStorage.getItem("crm_token");
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      const res = await fetch(`/api/usage?${params}`, { cache: "no-store", headers });
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
       const json = await res.json();
       if (json.error) throw new Error(json.error);
@@ -121,15 +120,19 @@ export default function UsagePage() {
   const exportExcel = useCallback(async () => {
     if (!data) return;
     const params = new URLSearchParams({
-      start_date: startDate, end_date: endDate,
+      start_date: committed.startDate, end_date: committed.endDate,
       page: "1", limit: "999999",
       sort_by: sortBy, sort_order: sortOrder,
     });
-    if (productFilter) params.set("product", productFilter);
-    if (partnerFilter) params.set("partner", partnerFilter);
-    if (search.trim()) params.set("search", search.trim());
+    if (committed.productFilter) params.set("product", committed.productFilter);
+    if (committed.partnerFilter) params.set("partner", committed.partnerFilter);
+    if (committed.search.trim()) params.set("search", committed.search.trim());
+    if (committed.userBenarOnly) params.set("user_benar", "true");
 
-    const res = await fetch(`/api/usage?${params}`, { cache: "no-store" });
+    const token = localStorage.getItem("crm_token");
+    const headers: HeadersInit = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`/api/usage?${params}`, { cache: "no-store", headers });
     const json = await res.json();
 
     const rows = json.users.map((u: UserUsage) => ({
@@ -149,8 +152,8 @@ export default function UsagePage() {
     const range = `A1:H${rows.length + 1}`;
     const colWidths = [35, 20, 20, 15, 15, 15, 10, 15];
     ws["!cols"] = colWidths.map((w) => ({ wch: w }));
-    XLSX.writeFile(wb, `usage_${startDate}_${endDate}.xlsx`);
-  }, [data, startDate, endDate, productFilter, partnerFilter, search, sortBy, sortOrder]);
+    XLSX.writeFile(wb, `usage_${committed.startDate}_${committed.endDate}.xlsx`);
+  }, [data, committed, sortBy, sortOrder]);
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
@@ -163,17 +166,15 @@ export default function UsagePage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex overflow-hidden rounded-lg border border-zinc-200">
-              {presets.map((p) => (
-                <button
-                  key={p.days}
-                  onClick={() => setRange(p.days)}
-                  className={`px-2.5 py-1.5 text-xs font-medium transition ${startDate === daysAgo(p.days) ? 'bg-[#1f3c88] text-white' : 'bg-white text-zinc-600 hover:bg-zinc-50'}`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition hover:border-zinc-400">
+              <input
+                type="checkbox"
+                checked={userBenarOnly}
+                onChange={(e) => setUserBenarOnly(e.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 text-[#1f3c88] focus:ring-[#1f3c88]"
+              />
+              <span className="font-medium text-zinc-700">User Benar Only</span>
+            </label>
             <input
               type="date"
               value={startDate}
@@ -205,20 +206,29 @@ export default function UsagePage() {
               ))}
             </select>
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") applyFilters(); }}
               placeholder="Cari nama/email..."
               className="w-full min-w-[160px] rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88] md:w-auto"
             />
             <button
+              onClick={applyFilters}
+              className="rounded-lg border border-[#1f3c88] bg-[#1f3c88] px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[#16306b]"
+            >
+              Cari
+            </button>
+            <button
               onClick={() => {
-                const d = new Date();
-                d.setDate(d.getDate() - 30);
-                setStartDate(d.toISOString().split("T")[0]);
-                setEndDate(new Date().toISOString().split("T")[0]);
+                const d = daysAgo(30);
+                const t = today();
+                setStartDate(d);
+                setEndDate(t);
                 setProductFilter("");
                 setPartnerFilter("");
-                setSearch("");
+                setSearchInput("");
+                setUserBenarOnly(false);
+                setCommitted({ startDate: d, endDate: t, productFilter: "", partnerFilter: "", search: "", userBenarOnly: false });
                 setPage(1);
               }}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-zinc-400"
@@ -303,7 +313,16 @@ export default function UsagePage() {
                 ) : (
                   data?.users.map((u, i) => (
                     <tr key={`${u.user_id}-${u.product_name}-${i}`} className="hover:bg-[#f7f8fb]">
-                      <td className="px-3 py-3 text-sm text-zinc-600">{u.email || "-"}</td>
+                      <td className="px-3 py-3 text-sm text-zinc-600">
+                        <div className="flex items-center gap-2">
+                          <span>{u.email || "-"}</span>
+                          {u.is_user_benar && (
+                            <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                              User Benar
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-3 py-3 text-sm text-zinc-600">{u.partner_name || "-"}</td>
                       <td className="px-3 py-3 text-sm text-zinc-700 whitespace-nowrap">{u.product_name}</td>
                       <td className="px-3 py-3 text-right text-sm text-emerald-600 font-semibold">

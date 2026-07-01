@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
+import { verifyAuth, requireRole, authErrorResponse } from "@/lib/auth";
 
 function buildWhereClauses(
   base: { startDate: string; endDate: string },
@@ -47,12 +48,16 @@ const productExpr = `LOWER(COALESCE(p.app_name, cmt.product_name))`;
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await verifyAuth(request.headers);
+    requireRole(user, "super_admin", "partnership");
+
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("start_date") || "2024-01-01";
     const endDate = searchParams.get("end_date") || new Date().toISOString().split("T")[0];
     const productFilter = searchParams.get("product") || undefined;
     const partnerFilter = searchParams.get("partner") || undefined;
     const search = searchParams.get("search") || undefined;
+    const userBenarOnly = searchParams.get("user_benar") === "true";
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const offset = (page - 1) * limit;
@@ -102,15 +107,17 @@ user_events AS (
           COALESCE(SUM(ABS(cmt.amount)), 0) AS total_usage,
           COALESCE(SUM(ABS(cmt.amount)) FILTER (WHERE ue.event_date IS NOT NULL), 0) AS event_usage,
           COALESCE(SUM(ABS(cmt.amount)) FILTER (WHERE ue.event_date IS NULL), 0) AS non_event_usage,
-          MAX(cmt.created_at) AS last_usage_at
+          MAX(cmt.created_at) AS last_usage_at,
+          ub.id IS NOT NULL AS is_user_benar
         FROM credit_manager_transactions cmt
         JOIN cms_customers c ON c.guid::uuid = cmt.user_id
         ${partnerJoin}
         ${productJoin}
         LEFT JOIN user_events ue ON ue.user_id = cmt.user_id AND ue.event_date = cmt.created_at::date
+        LEFT JOIN user_benar ub ON ub.customer_guid::uuid = c.guid::uuid AND ub.deleted_at IS NULL
         LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
-        WHERE ${whereSql}
-        GROUP BY cmt.user_id, c.full_name, c.email, rp.partner, ${productExpr}
+        WHERE ${whereSql}${userBenarOnly ? "\n    AND ub.id IS NOT NULL" : ""}
+        GROUP BY cmt.user_id, c.full_name, c.email, rp.partner, ${productExpr}, ub.id
       )
       SELECT *, COUNT(*) OVER() AS full_count
       FROM usage_data
@@ -216,6 +223,7 @@ user_events AS (
         event_usage: parseFloat(r.event_usage) || 0,
         non_event_usage: parseFloat(r.non_event_usage) || 0,
         last_usage_at: r.last_usage_at,
+        is_user_benar: r.is_user_benar === true || r.is_user_benar === "true",
       })),
       productRecap: productResult.rows.map((r) => ({
         product_name: r.product_name,
@@ -245,6 +253,6 @@ user_events AS (
     });
   } catch (error) {
     console.error("Usage API error:", error);
-    return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 });
+    return authErrorResponse(error);
   }
 }

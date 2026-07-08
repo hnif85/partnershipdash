@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { pool } from "@/lib/database";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const daysBack = 120;
+    const exclude = request.nextUrl.searchParams.get("exclude") || "";
 
     const paidPredicate = `
       LOWER(t.status) = 'finished'
@@ -16,6 +17,10 @@ export async function GET() {
       AND LOWER(t.payment_channel_name) NOT LIKE 'free%'
     `;
 
+    const excludeClause = exclude
+      ? `AND COALESCE(rp.activity_slug, 'other') != '${exclude.replace(/'/g, "''")}'`
+      : "";
+
     const results = await Promise.all([
 
       // Panel 1 — User Funnel per Channel
@@ -25,7 +30,7 @@ export async function GET() {
           FROM cms_customers c
           LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
           LEFT JOIN referral_partners rp ON c.referal_code = rp.code
-          WHERE dee.email IS NULL
+          WHERE dee.email IS NULL ${excludeClause}
         ),
         trial_tx AS (
           SELECT DISTINCT t.customer_guid
@@ -80,6 +85,7 @@ export async function GET() {
         LEFT JOIN referral_partners rp ON c.referal_code = rp.code
         WHERE ${paidPredicate}
           AND dee.email IS NULL
+          ${excludeClause}
         GROUP BY COALESCE(rp.activity_slug, 'other')
         ORDER BY revenue_idr DESC
       `),

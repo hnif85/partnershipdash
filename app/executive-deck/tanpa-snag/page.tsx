@@ -99,7 +99,7 @@ function MiniBar({ value, max, color, label }: { value: number; max: number; col
   );
 }
 
-function SimpleLine({ data, color }: { data: { date: string; value: number }[]; color: string; label?: string }) {
+function SimpleLine({ data, color }: { data: { date: string; value: number }[]; color: string }) {
   if (data.length === 0) return <p className="py-6 text-center text-xs text-zinc-500">Belum ada data.</p>;
   const maxV = Math.max(...data.map((d) => d.value), 1);
   const pts = data.map((d, i) => {
@@ -123,14 +123,14 @@ function SimpleLine({ data, color }: { data: { date: string; value: number }[]; 
   );
 }
 
-export default function ExecutiveDeck() {
+export default function ExecutiveDeckNoSnag() {
   const [data, setData] = useState<ExecutiveData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("/api/executive-deck");
+        const res = await fetch("/api/executive-deck?exclude=snag");
         if (!res.ok) throw new Error("Failed to load");
         const json = await res.json();
         setData(json);
@@ -173,23 +173,22 @@ export default function ExecutiveDeck() {
         {/* Header */}
         <header className="flex items-center justify-between border-b border-zinc-200 pb-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#1f3c88]">Executive Deck</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight text-[#1f3c88]">Executive Deck &mdash; Tanpa Snag</h1>
+              <Link href="/executive-deck" className="rounded-md bg-zinc-100 px-3 py-1 text-xs text-zinc-600 hover:bg-zinc-200">
+                &larr; Semua Channel
+              </Link>
+            </div>
             <p className="mt-1 text-xs text-zinc-500">
-              Data bersih (excluded email &bull; sinkronasi{" "}
+              Data bersih &mdash; exclude channel snag &bull;{" "}
               {data.timestamp
                 ? new Date(data.timestamp).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
                 : "-"}
-              )
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/executive-deck/tanpa-snag" className="rounded-md border border-zinc-300 px-3 py-1 text-xs text-zinc-600 hover:bg-zinc-100">
-              Tanpa Snag &rarr;
-            </Link>
-            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-              Conversion Rate: {funnelConversion}%
-            </span>
-          </div>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            Conversion Rate: {funnelConversion}%
+          </span>
         </header>
 
         {/* Row 1 — KPI Cards */}
@@ -231,7 +230,7 @@ export default function ExecutiveDeck() {
 
         {/* Row 3 — User Funnel */}
         <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-600">User Funnel per Channel</h2>
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-zinc-600">User Funnel per Channel (excl. Snag)</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -322,7 +321,6 @@ export default function ExecutiveDeck() {
             <SimpleLine
               data={data.revenueTrend.map((r) => ({ date: r.date, value: r.revenueIdr }))}
               color="#059669"
-              label="Revenue IDR"
             />
           </div>
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -330,7 +328,6 @@ export default function ExecutiveDeck() {
             <SimpleLine
               data={data.usageTrend.map((r) => ({ date: r.date, value: r.uniqueUsers }))}
               color="#0891b2"
-              label="Unique Users"
             />
           </div>
         </section>

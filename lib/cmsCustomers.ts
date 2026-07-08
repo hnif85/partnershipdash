@@ -567,6 +567,7 @@ export async function getCustomerById(id: string): Promise<CmsCustomer | null> {
            c.updated_by_guid,
            c.updated_by_name,
            c.subscribe_list,
+           company_info.brand,
            COALESCE((
              SELECT SUM(amount)::numeric
              FROM credit_manager_transactions cmt
@@ -625,15 +626,12 @@ export async function getCustomerById(id: string): Promise<CmsCustomer | null> {
                'event_date', ev.event_date,
              'event_id', te.event_id,
              'created_at', te.created_at
-           )) FILTER (WHERE EXISTS (
-               SELECT 1 FROM training_enrollments te2 WHERE LOWER(te2.user_guid::text) = LOWER(c.guid::text)
              ))
              FROM training_enrollments te
              LEFT JOIN training_events ev ON ev.id = te.event_id
-            LEFT JOIN tmp_training_data td
-             ON td.guid = te.source_guid
+             LEFT JOIN tmp_training_data td ON td.guid = te.source_guid
              WHERE LOWER(te.user_guid::text) = LOWER(c.guid::text)
-           ) AS training_data
+            ) AS training_data
     FROM cms_customers c
     LEFT JOIN demo_excluded_emails dee ON dee.email = c.email AND dee.is_active = true
     LEFT JOIN LATERAL (

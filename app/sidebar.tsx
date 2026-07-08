@@ -15,6 +15,13 @@ type User = {
 type NavItem = { href: string; label: string };
 type NavGroup = { label: string; items: NavItem[] };
 
+const emailItems: NavItem[] = [
+  { href: "/email", label: "Email Dashboard" },
+  { href: "/email/campaigns", label: "Email Campaigns" },
+  { href: "/email/templates", label: "Email Templates" },
+  { href: "/email/settings", label: "SMTP Settings" },
+];
+
 const crmItems: NavItem[] = [
   { href: "/crm", label: "CRM" },
   { href: "/crm/campaigns", label: "Campaigns" },
@@ -33,12 +40,9 @@ const menuGroups: Record<User["role"], NavGroup[]> = {
     { label: "Data", items: [{ href: "/customers", label: "Customers" }] },
     { label: "Finance", items: [{ href: "/sales", label: "Sales" }] },
     { label: "Analytics", items: [{ href: "/referral", label: "Referral" }, { href: "/usage", label: "Usage" }] },
-    {
-      label: "Targets",
-      items: [{ href: "/activityTarget", label: "Activity Targets" }, ...activityItems],
-    },
     { label: "Events", items: [{ href: "/events", label: "Events" }] },
     { label: "CRM", items: crmItems },
+    { label: "Email Blast", items: emailItems },
     {
       label: "Settings",
       items: [
@@ -52,14 +56,11 @@ const menuGroups: Record<User["role"], NavGroup[]> = {
     { label: "Data", items: [{ href: "/customers", label: "Customers" }] },
     { label: "Finance", items: [{ href: "/sales", label: "Sales" }] },
     { label: "Analytics", items: [{ href: "/referral", label: "Referral" }, { href: "/usage", label: "Usage" }] },
-    {
-      label: "Targets",
-      items: [{ href: "/activityTarget", label: "Activity Targets" }, ...activityItems],
-    },
     { label: "Events", items: [{ href: "/events", label: "Events" }] },
   ],
   crm: [
     { label: "Overview", items: [{ href: "/crm", label: "Dashboard" }] },
+    { label: "Analytics", items: [{ href: "/referral", label: "Referral" }, { href: "/usage", label: "Usage" }] },
     { label: "CRM", items: crmItems },
   ],
 };

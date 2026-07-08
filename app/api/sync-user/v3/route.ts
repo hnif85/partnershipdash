@@ -3,7 +3,8 @@ import { pool } from "@/lib/database";
 import { upsertCustomer } from "@/lib/cmsCustomers";
 
 const API_URL =
-  process.env.CMS_CUSTOMER_PUBLIC_API_URL ?? process.env.CMS_CUSTOMER_API_URL;
+  process.env.CMS_CUSTOMER_PUBLIC_API_URL ??
+  "https://api-mwxmarket.mwxmarket.ai/cms-service/customer/list/public";
 const API_KEY =
   process.env.CMS_CUSTOMER_PUBLIC_API_KEY ?? process.env.CMS_CUSTOMER_API_KEY;
 const LIMIT = Number(process.env.SYNC_USER_V3_LIMIT ?? 300);

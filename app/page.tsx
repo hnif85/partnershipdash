@@ -279,34 +279,50 @@ export default function Dashboard() {
   const [syncUserState, setSyncUserState] = useState<SyncState>({ status: "idle", message: null });
   const [syncTransactionState, setSyncTransactionState] = useState<SyncState>({ status: "idle", message: null });
   const [syncUsageState, setSyncUsageState] = useState<SyncState>({ status: "idle", message: null });
+  const [autoSyncing, setAutoSyncing] = useState(false);
+  const [autoSyncStep, setAutoSyncStep] = useState<string | null>(null);
+  const [cooldowns, setCooldowns] = useState<Record<string, boolean>>({});
   const [purchaseMode, setPurchaseMode] = useState<"daily" | "cumulative">("daily");
   const [usageCreditMode, setUsageCreditMode] = useState<"daily" | "cumulative">("daily");
   const [usageUserMode, setUsageUserMode] = useState<"daily" | "cumulative">("daily");
+
+  const setCooldown = (key: string) => {
+    setCooldowns((prev) => ({ ...prev, [key]: true }));
+    setTimeout(() => setCooldowns((prev) => ({ ...prev, [key]: false })), 15000);
+  };
+
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const persistSyncState = (
     key: "user" | "transaction" | "usage",
     state: SyncState
   ) => {
     try {
-      localStorage.setItem(`sync_state_${key}`, JSON.stringify(state));
+      localStorage.setItem(`sync_state_${key}`, JSON.stringify({ ...state, _persistedAt: Date.now() }));
     } catch (err) {
       console.warn("Failed to persist sync state", err);
     }
   };
 
   const loadPersistedSyncStates = useCallback(() => {
+    const SYNC_TTL_MS = 30 * 60 * 1000;
     const keys: Array<["user" | "transaction" | "usage", Dispatch<SetStateAction<SyncState>>]> = [
       ["user", setSyncUserState],
       ["transaction", setSyncTransactionState],
       ["usage", setSyncUsageState],
     ];
+    const now = Date.now();
 
     keys.forEach(([key, setter]) => {
       try {
         const stored = localStorage.getItem(`sync_state_${key}`);
         if (stored) {
-          const parsed = JSON.parse(stored) as SyncState;
-          setter({ status: parsed.status, message: parsed.message, updatedAt: parsed.updatedAt });
+          const parsed = JSON.parse(stored) as SyncState & { _persistedAt?: number };
+          if (parsed._persistedAt && now - parsed._persistedAt < SYNC_TTL_MS) {
+            setter({ status: parsed.status, message: parsed.message, updatedAt: parsed.updatedAt });
+          } else {
+            localStorage.removeItem(`sync_state_${key}`);
+          }
         }
       } catch (err) {
         console.warn(`Failed to read persisted sync state for ${key}`, err);
@@ -335,6 +351,19 @@ export default function Dashboard() {
     };
     load();
   }, [fetchDashboard, loadPersistedSyncStates]);
+
+  useEffect(() => {
+    if (loading || !data || autoSyncing) return;
+
+    const now = new Date();
+    const wibHour = (now.getUTCHours() + 7) % 24;
+    const todayStr = formatYMD(now);
+    const lastAutoSync = localStorage.getItem("last_auto_sync_date");
+
+    if (wibHour >= 8 && lastAutoSync !== todayStr) {
+      triggerAutoSync();
+    }
+  }, [loading, data]);
 
   const runSync = async (
     endpoint: string,
@@ -402,8 +431,8 @@ export default function Dashboard() {
   };
 
   // Sync customers incremental: H-1 dari last created_at hingga hari ini (00:00-23:59)
-  const handleSyncUsers = () =>
-    runSync(
+  const handleSyncUsers = async () => {
+    await runSync(
       "/api/sync-user/v3",
       setSyncUserState,
       (data) =>
@@ -411,9 +440,11 @@ export default function Dashboard() {
           data.start_date ?? "N/A"
         } s/d ${data.end_date ?? "N/A"})`
     );
+    setCooldown("user");
+  };
 
-  const handleSyncTransactions = () =>
-    runSync(
+  const handleSyncTransactions = async () => {
+    await runSync(
       "/api/sync-transactions",
       setSyncTransactionState,
       (data) => `${data.success_count ?? data.total_processed ?? 0} transaksi baru`,
@@ -422,13 +453,44 @@ export default function Dashboard() {
         body: JSON.stringify({}), // sesuai tombol "Sinkron Semua" di /sales
       }
     );
+    setCooldown("transaction");
+  };
 
-  const handleSyncUsage = () =>
-    runSync(
+  const handleSyncUsage = async () => {
+    await runSync(
       "/api/sync-credit-manager-transactions",
       setSyncUsageState,
       (data) => `${data.success_count ?? data.total_processed ?? 0} usage baru`
     );
+    setCooldown("usage");
+  };
+
+  const triggerAutoSync = async () => {
+    setAutoSyncing(true);
+    try {
+      setAutoSyncStep("Sync User...");
+      await handleSyncUsers();
+      setCooldown("user");
+      await delay(2000);
+
+      setAutoSyncStep("Sync Transaksi...");
+      await handleSyncTransactions();
+      setCooldown("transaction");
+      await delay(2000);
+
+      setAutoSyncStep("Sync Usage...");
+      await handleSyncUsage();
+      setCooldown("usage");
+      await delay(1000);
+
+      localStorage.setItem("last_auto_sync_date", formatYMD(new Date()));
+    } catch (err) {
+      console.error("Auto-sync gagal:", err);
+    } finally {
+      setAutoSyncStep(null);
+      setAutoSyncing(false);
+    }
+  };
 
   const purchaseChartData: MiniBarDatum[] = useMemo(() => {
     if (!data?.dailyPurchases) return [];
@@ -787,72 +849,86 @@ export default function Dashboard() {
                     <Link href="/sales" className="text-[#1f3c88] hover:underline font-semibold">Lihat transaksi</Link>
                     <Link href="/customers" className="text-[#0f5132] hover:underline font-semibold">Lihat customers</Link>
                   </div>
-                  <div className="mt-4 border-t border-dashed border-[#e5e7eb] pt-4">
+                    <div className="mt-4 border-t border-dashed border-[#e5e7eb] pt-4">
                     <p className="text-xs font-semibold uppercase text-[#1f3c88] mb-3">Sync Cepat</p>
+                    {autoSyncing && (
+                      <div className="mb-3 rounded-lg bg-[#f0f4ff] border border-[#1f3c88]/20 px-3 py-2 text-xs text-[#1f3c88]">
+                        ⏳ Auto-sync sedang berjalan: <strong>{autoSyncStep}</strong>
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={handleSyncUsers}
-                        disabled={syncUserState.status === "loading"}
+                        disabled={syncUserState.status === "loading" || cooldowns["user"] || autoSyncing}
                         className={`rounded-lg px-3 py-2 text-xs font-semibold transition border ${
-                          syncUserState.status === "loading"
+                          syncUserState.status === "loading" || cooldowns["user"] || autoSyncing
                             ? "border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
                             : "border-[#1f3c88] text-[#1f3c88] hover:bg-[#f0f4ff]"
                         }`}
                       >
-                        {syncUserState.status === "loading" ? "Sync User..." : "Sync User"}
+                        {syncUserState.status === "loading" ? "Sync User..." : cooldowns["user"] ? "Sync User (cooldown)" : "Sync User"}
                       </button>
                       <button
                         onClick={handleSyncTransactions}
-                        disabled={syncTransactionState.status === "loading"}
+                        disabled={syncTransactionState.status === "loading" || cooldowns["transaction"] || autoSyncing}
                         className={`rounded-lg px-3 py-2 text-xs font-semibold transition border ${
-                          syncTransactionState.status === "loading"
+                          syncTransactionState.status === "loading" || cooldowns["transaction"] || autoSyncing
                             ? "border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
                             : "border-[#0f5132] text-[#0f5132] hover:bg-[#e7f5ec]"
                         }`}
                       >
-                        {syncTransactionState.status === "loading" ? "Sync Transaksi..." : "Sync Transaksi"}
+                        {syncTransactionState.status === "loading" ? "Sync Transaksi..." : cooldowns["transaction"] ? "Sync Transaksi (cooldown)" : "Sync Transaksi"}
                       </button>
                       <button
                         onClick={handleSyncUsage}
-                        disabled={syncUsageState.status === "loading"}
+                        disabled={syncUsageState.status === "loading" || cooldowns["usage"] || autoSyncing}
                         className={`rounded-lg px-3 py-2 text-xs font-semibold transition border ${
-                          syncUsageState.status === "loading"
+                          syncUsageState.status === "loading" || cooldowns["usage"] || autoSyncing
                             ? "border-zinc-200 bg-zinc-100 text-zinc-500 cursor-not-allowed"
                             : "border-[#d97706] text-[#d97706] hover:bg-[#fff7ed]"
                         }`}
                       >
-                        {syncUsageState.status === "loading" ? "Sync Usage..." : "Sync Usage"}
+                        {syncUsageState.status === "loading" ? "Sync Usage..." : cooldowns["usage"] ? "Sync Usage (cooldown)" : "Sync Usage"}
                       </button>
                     </div>
                     <div className="mt-3 space-y-1 text-xs text-zinc-600">
                       {syncUserState.message && (
-                        <div className={syncUserState.status === "error" ? "text-red-600" : "text-[#1f3c88]"}>
-                          <span>User: {syncUserState.message}</span>
-                          {syncUserState.updatedAt ? (
-                            <span className="block text-[11px] text-zinc-400">
-                              Terakhir: {formatDateTime(syncUserState.updatedAt)}
-                            </span>
-                          ) : null}
+                        <div className={`group flex items-start justify-between gap-2 ${syncUserState.status === "error" ? "text-red-600" : "text-[#1f3c88]"}`}>
+                          <div>
+                            <span>User: {syncUserState.message}</span>
+                            {syncUserState.updatedAt ? (
+                              <span className="block text-[11px] text-zinc-400">
+                                Terakhir: {formatDateTime(syncUserState.updatedAt)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <button onClick={() => setSyncUserState({ status: "idle", message: null })} className="shrink-0 text-zinc-400 hover:text-zinc-700 transition">&times;</button>
                         </div>
                       )}
                       {syncTransactionState.message && (
-                        <div className={syncTransactionState.status === "error" ? "text-red-600" : "text-[#0f5132]"}>
-                          <span>Transaksi: {syncTransactionState.message}</span>
-                          {syncTransactionState.updatedAt ? (
-                            <span className="block text-[11px] text-zinc-400">
-                              Terakhir: {formatDateTime(syncTransactionState.updatedAt)}
-                            </span>
-                          ) : null}
+                        <div className={`group flex items-start justify-between gap-2 ${syncTransactionState.status === "error" ? "text-red-600" : "text-[#0f5132]"}`}>
+                          <div>
+                            <span>Transaksi: {syncTransactionState.message}</span>
+                            {syncTransactionState.updatedAt ? (
+                              <span className="block text-[11px] text-zinc-400">
+                                Terakhir: {formatDateTime(syncTransactionState.updatedAt)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <button onClick={() => setSyncTransactionState({ status: "idle", message: null })} className="shrink-0 text-zinc-400 hover:text-zinc-700 transition">&times;</button>
                         </div>
                       )}
                       {syncUsageState.message && (
-                        <div className={syncUsageState.status === "error" ? "text-red-600" : "text-[#d97706]"}>
-                          <span>Usage: {syncUsageState.message}</span>
-                          {syncUsageState.updatedAt ? (
-                            <span className="block text-[11px] text-zinc-400">
-                              Terakhir: {formatDateTime(syncUsageState.updatedAt)}
-                            </span>
-                          ) : null}
+                        <div className={`group flex items-start justify-between gap-2 ${syncUsageState.status === "error" ? "text-red-600" : "text-[#d97706]"}`}>
+                          <div>
+                            <span>Usage: {syncUsageState.message}</span>
+                            {syncUsageState.updatedAt ? (
+                              <span className="block text-[11px] text-zinc-400">
+                                Terakhir: {formatDateTime(syncUsageState.updatedAt)}
+                              </span>
+                            ) : null}
+                          </div>
+                          <button onClick={() => setSyncUsageState({ status: "idle", message: null })} className="shrink-0 text-zinc-400 hover:text-zinc-700 transition">&times;</button>
                         </div>
                       )}
                     </div>

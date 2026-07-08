@@ -1,6 +1,7 @@
 ﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCustomerById, getReferralPartners } from "@/lib/cmsCustomers";
+import { getDeliverablesByGuid } from "@/lib/createwhiz";
 
 const formatDate = (value?: string | null) => {
   if (!value) return "-";
@@ -13,6 +14,7 @@ const buildCustomersBackHref = (searchParams?: { [key: string]: string | string[
   const qs = new URLSearchParams();
   if (searchParams) {
     Object.entries(searchParams).forEach(([key, val]) => {
+      if (key === "_rsc") return;
       if (Array.isArray(val)) {
         val.forEach((v) => qs.append(key, v));
       } else if (typeof val === "string") {
@@ -41,26 +43,10 @@ export default async function CustomerDetail({
   let partners: Awaited<ReturnType<typeof getReferralPartners>> = [];
   let deliverables: any[] = [];
   try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.APP_BASE_URL ||
-      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "") ||
-      "";
-    const deliverablePath = `/api/createwhiz/deliverables/${encodeURIComponent(id)}`;
-    const deliverableUrl = new URL(deliverablePath, baseUrl || "http://localhost:3000").toString();
-
     const [customerData, partnersData, deliverablesData] = await Promise.all([
       getCustomerById(id),
       getReferralPartners(),
-      fetch(deliverableUrl, {
-        cache: "no-store",
-      }).then(async (res) => {
-        if (!res.ok) {
-          // If deliverables are missing (404) or other error, return empty set silently.
-          return { deliverables: [] };
-        }
-        return res.json();
-      }),
+      getDeliverablesByGuid(id),
     ]);
     customer = customerData;
     partners = partnersData;

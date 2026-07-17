@@ -16,8 +16,8 @@ function buildWhereClauses(
   let idx = 3;
 
   if (extras.productFilter) {
-    clauses.push(`COALESCE(p.app_name, cmt.product_name) = $${idx}`);
-    values.push(extras.productFilter);
+    clauses.push(`${productExpr} = $${idx}`);
+    values.push(extras.productFilter.toLowerCase());
     idx++;
   }
 
@@ -37,14 +37,20 @@ function buildWhereClauses(
 }
 
 const productJoin = `
-LEFT JOIN (SELECT DISTINCT agent_id, app_name FROM products) p ON p.agent_id = cmt.agent::text
+LEFT JOIN (
+  SELECT agent_id, MIN(app_name) AS app_name
+  FROM products
+  GROUP BY agent_id
+) p ON p.agent_id = cmt.agent::text
 `;
 
 const partnerJoin = `
 LEFT JOIN referral_partners rp ON rp.code = c.referal_code
 `;
 
-const productExpr = `LOWER(COALESCE(p.app_name, cmt.product_name))`;
+// Normalize product name: strip suffixes like " - Basic", " - Free Trial", etc.
+// Handles both "CreateWhiz - Basic" and "PostWhiz-Basic" formats.
+const productExpr = `LOWER(TRIM(regexp_replace(COALESCE(p.app_name, cmt.product_name), '[\\s-]+(Basic|Enterprise|Free[\\s]*Trial|Freetrial|Pro|Promo)[\\s]*$', '', 'i')))`;
 
 export async function GET(request: NextRequest) {
   try {
@@ -177,7 +183,7 @@ user_events AS (
     const productsQuery = `
       SELECT DISTINCT ${productExpr} AS product_name
       FROM credit_manager_transactions cmt
-      LEFT JOIN products p ON p.agent_id = cmt.agent::text
+      ${productJoin}
       WHERE LOWER(cmt.type) = 'debit'
       ORDER BY product_name
     `;

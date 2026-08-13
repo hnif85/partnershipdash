@@ -148,8 +148,13 @@ export default function TransactionsPage() {
   } | null>(null);
   const [updateStartDate, setUpdateStartDate] = useState<string>("2026-02-03");
   const [updateEndDate, setUpdateEndDate] = useState<string>("2026-02-05"); 
-  const [showUpdatePanel, setShowUpdatePanel] = useState(false);
+const [showUpdatePanel, setShowUpdatePanel] = useState(false);
   const [lastTransactionDate, setLastTransactionDate] = useState<string | null>(null);
+  const [exportFromDate, setExportFromDate] = useState<string>("");
+  const [exportToDate, setExportToDate] = useState<string>("");
+  const [exportPartner, setExportPartner] = useState<string>("");
+  const [exportLoading, setExportLoading] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
     loadTransactions();
@@ -581,6 +586,42 @@ export default function TransactionsPage() {
     }
   };
 
+  const handleExportPurchases = async () => {
+    if (!exportFromDate && !exportToDate && !exportPartner) {
+      alert('Isi minimal salah satu filter: rentang tanggal last purchase atau partner.');
+      return;
+    }
+    setExportLoading(true);
+    setExportError(null);
+    try {
+      const params = new URLSearchParams();
+      if (exportFromDate) params.set("from", exportFromDate);
+      if (exportToDate) params.set("to", exportToDate);
+      if (exportPartner) params.set("partner", exportPartner);
+
+      const res = await fetch(`/api/purchases/export?${params}`, { cache: "no-store" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `HTTP ${res.status}`);
+      }
+
+      const blob = await res.blob();
+      const filename = `pembelian_per_email_${new Date().toISOString().split("T")[0]}.xlsx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-900">
       <div className="flex w-full flex-col gap-8 px-6 py-10 lg:px-10 lg:py-14">
@@ -787,6 +828,73 @@ export default function TransactionsPage() {
               Reset Filter
             </button>
           </div>
+        </section>
+
+        <section className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+          <div className="mb-4">
+            <p className="text-xs font-semibold uppercase text-[#1f3c88]">Export Pembelian per Email</p>
+            <h3 className="text-lg font-semibold text-[#0f172a]">Siapa beli beberapa kali?</h3>
+            <p className="text-sm text-zinc-500">
+              Filter user berdasarkan pembelian terakhir (last purchase) di rentang tanggal dan/atau partner.
+              Output Excel: 1 baris per email dengan seluruh riwayat pembeliannya.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={exportFromDate}
+                onChange={(e) => setExportFromDate(e.target.value)}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+              />
+              <span className="text-sm text-zinc-500">s/d</span>
+              <input
+                type="date"
+                value={exportToDate}
+                onChange={(e) => setExportToDate(e.target.value)}
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+              />
+            </div>
+            <select
+              value={exportPartner}
+              onChange={(e) => setExportPartner(e.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-[#1f3c88] focus:outline-none focus:ring-1 focus:ring-[#1f3c88]"
+            >
+              <option value="">Partner: Semua</option>
+              {referrals.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleExportPurchases}
+              disabled={exportLoading}
+              className={`rounded-lg border px-4 py-2 text-sm font-semibold transition ${
+                exportLoading
+                  ? "cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400"
+                  : "border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 hover:border-indigo-700"
+              }`}
+              type="button"
+            >
+              {exportLoading ? "Membuat Excel..." : "Export Pembelian per Email"}
+            </button>
+            <button
+              onClick={() => {
+                setExportFromDate("");
+                setExportToDate("");
+                setExportPartner("");
+                setExportError(null);
+              }}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm transition hover:border-zinc-400"
+              type="button"
+            >
+              Reset
+            </button>
+          </div>
+          {exportError && (
+            <div className="mt-3 p-3 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200">
+              {exportError}
+            </div>
+          )}
         </section>
 
         <section className="rounded-xl border border-zinc-200 bg-white shadow-sm mb-8">
